@@ -1,0 +1,161 @@
+
+usage:
+
+    fsfiletime command <command parameters>
+
+command:
+    query
+    set
+    timetobin
+    bintotime
+    help
+
+command parameters:
+
+    query [options] filename [filename...]
+
+    Displays file's date time.
+
+    -b          displays absolute systemtime value (hex).
+    -u, -utc    displays time as UTC.
+    -l          displays line mode.
+    -m          displays milliseconds
+    -t:<type>   specifies display date/time type
+    -fd:<dateformat> specifies format for date display.
+    -ft:<timeformat> specifies format for time display.
+
+    <type>
+      specify by combine the characters that represent the time-attributes
+      type. 
+
+      w  Last Write Time
+      c  Creation Time
+      a  Last Access Time
+      h  Attribute Chage Time
+
+      if not specified type, the default is "-t:wcah". 
+
+    <dataformat>
+      the format is refer to document for Win32 the GetDateFormat function.
+      e.g.
+          -fd:yyyy/MM/dd(ddd)
+
+    <timeformat>
+      the format is refer to document for Win32 the GetTimeFormat function.
+      e.g.
+          -ft:"tt hh:mm:ss"
+
+    filename    specifies display files.
+
+    -----
+
+    set {<date>|<time>|<bin>} [options] filename [filename...]
+
+    date/time
+    -dw:<date>  set last write date
+    -dc:<date>  set creation date
+    -da:<date>  set last access date
+    -dh:<date>  set attribute change date
+    -dz:<date>  set all date
+
+    -tw:<time>  set last write time
+    -tc:<time>  set creation time
+    -ta:<time>  set last access time
+    -th:<time>  set attribute change time
+    -tz:<time>  set all time 
+
+    - or - 
+
+    -bw:<bin>   set absolute systemtime last write date/time
+    -bc:<bin>   set absolute systemtime creation date/time
+    -ba:<bin>   set absolute systemtime last access date/time
+    -bh:<bin>   set absolute systemtime attribute change date/time
+	-bz:<bin>   set all absolute systemtime 
+
+    date/time  {-d?,-t?}  and  {-b?}  is mutually exclusive.
+
+    options
+    -u, -utc    set time as UTC.
+    -dos, -fat  set time as ms-dos time.
+    -y          suppress confirm prompt.
+    -r          show result.
+    -test       test run mode. enum target files but no update to date/time.
+         
+    specifies format
+       <date> "yyyy-mm-dd"
+       <time> "hh:mm:ss" | "hh:mm:ss.nnn"
+              If you do not specify -u, dates and times are trement as local 
+              time.
+
+              If specified '@now' instead date or time format string, set to 
+              current date/time.
+
+              NOTE:
+              The date year/month/day order varies country, but we use as 
+              default the Japanese format for simplization.
+
+              e.g.
+              -wd:"2019-03-01" -wt:"12:34:56"
+              -cd:"2019-03-01" -ct:@now
+              -zd:@now
+
+       <bin>  decimal or hex value. use prefix "0x" as hex input.
+
+              The specified value is directly set to file's 64bit absolute
+              system time.
+              (ignores -u option)
+
+              If specified '@now' instead system time, set to current time.
+
+              e.g.
+              input decimal
+              -wb:132000000000000000
+
+              input hex
+              -cb:0x1D5000000000000
+
+    filename    specifies display files.
+
+    -----
+
+    timetobin date [time] [options]
+
+    Displays absolute system time value from specified date time.
+    If specified '@now', displays current absolute system time.
+
+    options
+    -u, -utc    specifies date/time is treat as UTC.
+    -fd:<dateformat> specifies format for date display.
+    -ft:<timeformat> specifies format for time display.
+
+    -----
+
+    bintotime value [options]
+
+    Displays date time from the specified system time value.
+
+    options
+    -dos        treat specified value as the absolute seconds since 1980. 
+    -unix       treat specified value as the absolute seconds since 1970. 
+    -u, -utc    displays date/time as UTC. does not convert to localtime.
+    -m          displays milliseconds
+
+    -----
+
+    help 
+
+    Displays this text.
+
+e.g.
+
+fsfiletime query c:\windows\system32\notepad.exe
+fsfiletime query *.txt
+fsfiletime query *.txt -fd:"yyyy/MM/dd (ddd)"
+
+fsfiletime set c:\foo\bar\myfile.txt -wd:2019-01-01 /wt:01:02:55
+fsfiletime set c:\foo\bar\*.txt -zd:2019-03-21
+fsfiletime set c:\foo\bar\myfile.txt -wb:0x132000000000000000
+
+fsfiletime binttotime 0x132000000000000000
+
+fsfiletime timetobin 2019-03-01 12:34:56

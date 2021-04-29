@@ -1,0 +1,35 @@
+TARGETTYPE=PROGRAM
+TARGETNAME=fsfiletime
+TARGETPATH=obj
+UMENTRY=wmain
+UMTYPE=console
+
+_NT_TARGET_VERSION=$(_NT_TARGET_VERSION_VISTA)
+
+#
+# post build command (run update.bat)
+#
+_OUT_PATH=obj$(BUILD_ALT_DIR)\$(TARGET_DIRECTORY)\$(TARGETNAME)
+_UPDATE_PARAM=$(_OUT_PATH) $(_BUILDARCH) $(DDKBUILDENV)
+POST_BUILD_CMD=update.bat $(_UPDATE_PARAM)
+
+#
+# build parameter
+#
+USE_MSVCRT=1
+
+USE_NATIVE_EH=1
+
+INCLUDES=$(DDK_INC_PATH);..\libntwdk
+
+C_DEFINES=$(C_DEFINES) -DUNICODE -D_UNICODE
+
+SOURCES=\
+	fsfiletime.cpp\
+	usage.cpp\
+	fsfiletime.rc
+
+LINKLIBS=\
+	$(DDK_LIB_PATH)\ntdll.lib \
+	..\lib\$(_BUILDARCH)\lib$(DDKBUILDENV)\libntwdk.lib
+
