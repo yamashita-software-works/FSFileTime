@@ -44,7 +44,7 @@ EXTERN_C
 PVOID
 NTAPI
 RtlReAllocateHeap(
-	HANDLE hHeap,
+    HANDLE hHeap,
     ULONG dwFlags,
     PVOID lpMem,
     SIZE_T dwBytes
@@ -71,6 +71,10 @@ RtlReAllocateHeap(
 #define IS_RELATIVE_DIR_NAME_WITH_UNICODE_SIZE(path,size) \
             ((path[0] == L'.' && size == sizeof(WCHAR)) || \
             (path[0] == L'.' && path[1] == L'.' && (size == (sizeof(WCHAR)*2))))
+
+#define WCHAR_LENGTH(u) ((u) / sizeof(WCHAR))
+#define WCHAR_BYTES(w) ((w) * sizeof(WCHAR))
+#define WCHAR_CHARS(u) WCHAR_LENGTH(u)
 
 typedef struct _CURDIR
 {

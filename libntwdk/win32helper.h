@@ -17,8 +17,8 @@
 #define DATE_RTLREADING           0x00000020  // add marks for right to left reading order layout
 #define DATE_AUTOLAYOUT           0x00000040  // add appropriate marks for left-to-right or right-to-left reading order layout
 
-void WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags);
-void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags);
+void WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags);
+void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags);
 
 BOOLEAN
 WINAPI

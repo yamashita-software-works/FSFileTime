@@ -156,10 +156,12 @@
     <ClCompile Include="libntwdk.cpp" />
     <ClCompile Include="ntdirtraverse.cpp" />
     <ClCompile Include="ntenumfiles.cpp" />
+    <ClCompile Include="ntfilehelp.cpp" />
     <ClCompile Include="ntnativehelp.cpp" />
     <ClCompile Include="win32helper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="fileitem.h" />
     <ClInclude Include="libntwdk.h" />
     <ClInclude Include="ntnativeapi.h" />
     <ClInclude Include="ntnativehelp.h" />

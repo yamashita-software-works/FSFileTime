@@ -39,7 +39,7 @@ EnumFiles(
 {
     HANDLE hDirectory;
     NTSTATUS Status = 0;
-    BOOLEAN	bRestartScan = TRUE;
+    BOOLEAN bRestartScan = TRUE;
     OBJECT_ATTRIBUTES ObjectAttributes;
     IO_STATUS_BLOCK IoStatus;
     UNICODE_STRING NtPathName;

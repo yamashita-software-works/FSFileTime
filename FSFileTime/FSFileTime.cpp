@@ -20,372 +20,6 @@
 #include <winerror.h>
 
 #include "fsfiletime.h"
-#include "fileitem.h"
-
-int PrintError( LONG ErrorCode, PCWSTR pszParam = NULL );
-extern void PrintHelp();
-
-typedef enum
-{
-    Query,
-    Set,
-    TimeToBin,
-    BinToTime,
-    Help,
-} COMMANDSACTION;
-
-typedef struct _COMMAND_RUN_PARAM
-{
-    COMMANDSACTION action;
-
-    CFileList FileList;
-
-    BOOLEAN UTCMode;
-
-    LARGE_INTEGER CurrentSystemTime;
-    LARGE_INTEGER CurrentLocalTime;
-    TIME_FIELDS CurrentSystemTimeFields;
-    TIME_FIELDS CurrentLocalFields;
-
-    struct {
-        // QUERY command parameter (and SET command result display)
-        PWSTR pszPrintType;  // default: "WCAH"
-        PWSTR pszDateFormat; // default: NULL (system dependency)
-        PWSTR pszTimeFormat; // default: "HH:mm:ss"
-
-        BOOLEAN LineMode;
-        BOOLEAN HexDumpMode;
-        BOOLEAN ShowMilliseconds;
-    };
-
-    struct {
-        // SET command parameter
-        TIME_FIELDS tfLastWrite;
-        TIME_FIELDS tfCreation;
-        TIME_FIELDS tfLastAccess;
-        TIME_FIELDS tfAttrChange;
-        LARGE_INTEGER liLastWrite;
-        LARGE_INTEGER liCreation;
-        LARGE_INTEGER liLastAccess;
-        LARGE_INTEGER liAttrChange;
-        BOOLEAN DosTimeWrite;
-        BOOLEAN SuppressPrompt;
-        BOOLEAN TestRunMode;
-        BOOLEAN ShowResult;
-    };
-
-    struct {
-        // TIMETOBIN command parameter
-        int TimeToBinMode; // 0:nt/windows, 1:dos, 2:unix
-        TIME_FIELDS tf;
-    };
-
-    struct {
-        // BINTOTIME command parameter
-        int BinToTimeMode; // 0:nt/windows, 1:dos, 2:unix
-        LARGE_INTEGER liValue;
-    };
-
-} COMMAND_RUN_PARAM;
-
-__forceinline BOOLEAN isUnSetTimeFieldsDate(TIME_FIELDS& tf)
-{
-    return ( tf.Year == -1 && tf.Month == -1 && tf.Day == -1 );
-}
-
-__forceinline BOOLEAN isUnSetTimeFieldsTime(TIME_FIELDS& tf)
-{
-    return ( tf.Hour == -1 && tf.Minute == -1 && tf.Second == -1 ); 
-}
-
-__forceinline BOOLEAN isUnSetTimeFields(TIME_FIELDS& tf)
-{
-    return ( isUnSetTimeFieldsDate(tf) &&
-             isUnSetTimeFieldsTime(tf) ); 
-}
-
-__forceinline BOOLEAN isUnsetLargeInteger(LARGE_INTEGER& li)
-{
-    return ( li.QuadPart == -1 );
-}
-
-__forceinline BOOLEAN checkTimeFieldsAndLargeInteger(TIME_FIELDS& tf,LARGE_INTEGER& li)
-{
-    if( !isUnSetTimeFields(tf) && !isUnsetLargeInteger(li) )
-        return false;
-    return true;
-}
-
-__forceinline BOOLEAN checkValidDate(int year,int month,int day)
-{
-    // NOTE: TODO:
-    // - We not check the year range.
-    // - We not check the leap year.
-    static char md[] = { 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-    if( 1 <= month && month <= 12 )
-    {
-        if( 1 <= day && day <= md[month] )
-        {
-            return TRUE;
-        }
-    }
-    return FALSE;
-}
-
-__forceinline BOOLEAN checkValidTime(int hour,int minute,int second,int msecond=-1)
-{
-    if( msecond != -1 && !(0 <= msecond && msecond < 1000) )
-        return FALSE;
-    return ( 0 <= hour && hour <= 23 ) &&
-           ( 0 <= minute && minute <= 59 ) &&
-           ( 0 <= second && second <= 59 );
-}
-
-struct CCommandRunParam : public COMMAND_RUN_PARAM
-{
-    CCommandRunParam()
-    {
-        RtlZeroMemory(this,sizeof(COMMAND_RUN_PARAM));
-    }
-
-    ~CCommandRunParam()
-    {
-    }
-
-    //
-    // Print format setter
-    //
-    void SetPrintType(PCWSTR psz)
-    {
-        if( pszPrintType != NULL )
-            free(pszPrintType);
-        pszPrintType = _wcsdup(psz);
-    }
-
-    void SetDateFormat(PCWSTR psz)
-    {
-        if( pszDateFormat != NULL )
-            free(pszDateFormat);
-        pszDateFormat = _wcsdup(psz);
-    }
-
-    void SetTimeFormat(PCWSTR psz)
-    {
-        if( pszTimeFormat != NULL )
-            free(pszTimeFormat);
-        pszTimeFormat = _wcsdup(psz);
-    }
-
-    //
-    // Last Write Date/Time
-    //
-    BOOLEAN SetLastWriteDate(PCWSTR psz)
-    {
-        return getDate(psz,tfLastWrite);
-    }
-
-    BOOLEAN SetLastWriteTime(PWSTR psz)
-    {
-        return getTime(psz,tfLastWrite);
-    }
-
-    BOOLEAN SetLastWriteBin(PWSTR psz)
-    {
-        return getBinData(psz,liLastWrite);
-    }
-
-    //
-    // Creation Date/Time
-    //
-    BOOLEAN SetCreationDate(PCWSTR psz)
-    {
-        return getDate(psz,tfCreation);
-    }
-
-    BOOLEAN SetCreationTime(PWSTR psz)
-    {
-        return getTime(psz,tfCreation);
-    }
-
-    BOOLEAN SetCreationBin(PWSTR psz)
-    {
-        return getBinData(psz,liCreation);
-    }
-
-    //
-    // Last Access Date/Time
-    //
-    BOOLEAN SetLastAccessDate(PCWSTR psz)
-    {
-        return getDate(psz,tfLastAccess);
-    }
-
-    BOOLEAN SetLastAccessTime(PWSTR psz)
-    {
-        return getTime(psz,tfLastAccess);
-    }
-
-    BOOLEAN SetLastAccessBin(PWSTR psz)
-    {
-        return getBinData(psz,liLastAccess);
-    }
-
-    //
-    // Attribute Change Date/Time
-    //
-    BOOLEAN SetAttrChangeDate(PCWSTR psz)
-    {
-        return getDate(psz,tfAttrChange);
-    }
-
-    BOOLEAN SetAttrChangeTime(PWSTR psz)
-    {
-        return getTime(psz,tfAttrChange);
-    }
-
-    BOOLEAN SetAttrChangeBin(PWSTR psz)
-    {
-        return getBinData(psz,liAttrChange);
-    }
-
-    //
-    // miscellaneous
-    //
-    VOID InitCurrentTime()
-    {
-        NtQuerySystemTime(&CurrentSystemTime);
-        RtlSystemTimeToLocalTime(&CurrentSystemTime,&CurrentLocalTime);
-
-        RtlTimeToTimeFields(&CurrentSystemTime,&CurrentSystemTimeFields);
-        RtlTimeToTimeFields(&CurrentLocalTime,&CurrentLocalFields);
-    }
-
-    int	IsMacroText(PCWSTR psz)
-    {
-        if( _wcsicmp(psz,L"@now") == 0 )
-            return 1;
-        return 0; // no macro pattern
-    }
-
-private:
-    BOOLEAN getDate(PCWSTR psz,TIME_FIELDS& tf)
-    {
-        if( psz && !isUnSetTimeFieldsDate(tf) )
-            return FALSE; // already value setted.
-
-        int r,y,m,d;
-        y = m = d = -1;
-
-        if( psz != NULL )
-        {
-            int ptn = IsMacroText(psz);
-            if( ptn == 1 )
-            {
-                getCurDate(&y,&m,&d);
-            }
-            else
-            {
-                r = swscanf_s(psz,L"%d-%d-%d",&y,&m,&d);
-                if( r != 3 || (y == -1 || m == -1 || d == -1) )
-                    return false;
-
-                if( !checkValidDate(y,m,d) )
-                    return false;
-            }
-        }
-
-        tf.Year = (CSHORT)y;
-        tf.Month = (CSHORT)m;
-        tf.Day = (CSHORT)d;
-        return true;
-    }
-
-    BOOLEAN getTime(PCWSTR psz,TIME_FIELDS& tf)
-    {
-        if( psz && !isUnSetTimeFieldsTime(tf) )
-            return FALSE; // already value setted.
-
-        int r,h,m,s,ms;
-        h = m = s = ms = -1;
-
-        if( psz != NULL )
-        {
-            int ptn = IsMacroText(psz);
-            if( ptn == 1 )
-            {
-                getCurTime(&h,&m,&s,&ms);
-            }
-            else
-            {
-                if( wcschr(psz,L'.') != NULL )
-                {
-                    r = swscanf_s(psz,L"%d:%d:%d.%d",&h,&m,&s,&ms);
-                    if( r != 4 || (h == -1 || m == -1 || s == -1 || ms != -1) )
-                        return false;
-                }
-                else
-                {
-                    ms = 0;
-                    r = swscanf_s(psz,L"%d:%d:%d",&h,&m,&s);
-                    if( r != 3 || (h == -1 || m == -1 || s == -1) )
-                        return false;
-                }
-                if( !checkValidTime(h,m,s,ms) )
-                    return false;
-            }
-        }
-
-        tf.Hour = (CSHORT)h;
-        tf.Minute = (CSHORT)m;
-        tf.Second = (CSHORT)s;
-        tf.Milliseconds = (CSHORT)ms;
-
-        return true;
-    }
-
-    BOOLEAN getBinData(PCWSTR psz,LARGE_INTEGER& li)
-    {
-        if( psz && !isUnsetLargeInteger(li) )
-            return FALSE;  // already value setted.
-
-        if( psz != NULL )
-        {
-            int ptn = IsMacroText(psz);
-            if( ptn == 1 )
-            {
-                li.QuadPart = CurrentSystemTime.QuadPart;
-            }
-            else
-            {
-                int radix = 10;
-                if( psz[0] == L'0' && (psz[1] == L'x' || psz[1] == L'X') )
-                    radix = 16;
-                li.QuadPart = _wcstoi64(psz,NULL,radix);
-            }
-        }
-        else
-        {
-            li.QuadPart = -1;
-        }
-
-        return true;
-    }
-
-    VOID getCurDate(int *py,int *pm,int *pd)
-    {
-        *py = CurrentLocalFields.Year;
-        *pm = CurrentLocalFields.Month;
-        *pd = CurrentLocalFields.Day;
-    }
-
-    VOID getCurTime(int *ph,int *pm,int *ps,int *pms)
-    {
-        *ph = CurrentLocalFields.Hour;
-        *pm = CurrentLocalFields.Minute;
-        *ps = CurrentLocalFields.Second;
-        *pms = CurrentLocalFields.Milliseconds;
-    }
-};
 
 //----------------------------------------------------------------------------
 //
@@ -416,8 +50,8 @@ HRESULT AddMillisecondsString(LARGE_INTEGER& DateTime,LPTSTR pszText,int cchText
 //----------------------------------------------------------------------------
 VOID PrintFileDateTime(CCommandRunParam *pcm,UNICODE_STRING *FileName,FILE_BASIC_INFORMATION *FileInfo)
 {
-    PWSTR pszDF = pcm->pszDateFormat;
-    PWSTR pszTF = pcm->pszTimeFormat;
+    PCWSTR pszDF = pcm->GetDateFormat();
+    PCWSTR pszTF = pcm->GetTimeFormat();
     ULONG fDateFormatFlags = 0;
     ULONG fTimeFormatFlags = 0;
     BOOLEAN bUTF = pcm->UTCMode;
@@ -557,24 +191,34 @@ VOID PrintFileDateTime(CCommandRunParam *pcm,UNICODE_STRING *FileName,FILE_BASIC
 VOID DisplayFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFullPath )
 {
     OBJECT_ATTRIBUTES ObjectAttributes;
-
     InitializeObjectAttributes(&ObjectAttributes,FileNameWithFullPath,0,NULL,NULL);
 
-    HANDLE Handle;
     NTSTATUS Status;
+    HANDLE Handle;
     IO_STATUS_BLOCK IoStatus = {0};
 
     Status = NtOpenFile(&Handle,FILE_READ_ATTRIBUTES,&ObjectAttributes,&IoStatus,FILE_SHARE_READ|FILE_SHARE_WRITE,0);
 
     if( Status == STATUS_SUCCESS )
     {
+        RtlZeroMemory(&IoStatus,sizeof(IoStatus));
+
         FILE_BASIC_INFORMATION fbi = {0};
 
-        NtQueryInformationFile(Handle,&IoStatus,&fbi,sizeof(fbi),FileBasicInformation);
-
-        PrintFileDateTime(pcm,FileNameWithFullPath,&fbi);
+        if( (Status = NtQueryInformationFile(Handle,&IoStatus,&fbi,sizeof(fbi),FileBasicInformation)) == STATUS_SUCCESS )
+        {
+            PrintFileDateTime(pcm,FileNameWithFullPath,&fbi);
+        }
+        else
+        {
+            PrintError(Status);
+        }
 
         NtClose(Handle);
+    }
+    else
+    {
+        PrintError(Status);
     }
 }
 
@@ -725,7 +369,7 @@ VOID SetFileDateTime( CCommandRunParam *pcm, FILE_BASIC_INFORMATION *pfbi )
 //  UpdateFileDateTime()
 //
 //----------------------------------------------------------------------------
-VOID UpdateFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFullPath )
+VOID UpdateFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFullPath, FILE_BASIC_INFORMATION *pBasicInfo )
 {
     if( !pcm->SuppressPrompt )
     {
@@ -757,9 +401,15 @@ VOID UpdateFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFull
     {
         FILE_BASIC_INFORMATION fbi = {0};
 
-        NtQueryInformationFile(Handle,&IoStatus,&fbi,sizeof(fbi),FileBasicInformation);
-
-        SetFileDateTime(pcm,&fbi);
+        if( pBasicInfo != NULL )
+        {
+            fbi = *pBasicInfo;
+        }
+        else
+        {
+            NtQueryInformationFile(Handle,&IoStatus,&fbi,sizeof(fbi),FileBasicInformation);
+            SetFileDateTime(pcm,&fbi);
+        }
 
         if( !pcm->TestRunMode )
             Status = NtSetInformationFile(Handle,&IoStatus,&fbi,sizeof(fbi),FileBasicInformation);
@@ -799,7 +449,7 @@ VOID ActionFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFull
             DisplayFileDateTime( pcm, FileNameWithFullPath );
             break;
         case Set:
-            UpdateFileDateTime( pcm, FileNameWithFullPath );
+            UpdateFileDateTime( pcm, FileNameWithFullPath, NULL );
             break;
     }
 }
@@ -816,6 +466,12 @@ BOOLEAN CALLBACK EnumFileCallback(HANDLE hDirectory,PCWSTR DirectoryName,
         return TRUE;
 
     CCommandRunParam *pcm = (CCommandRunParam *)Context;
+
+    if( pcm->UpdateDirectory == FALSE && (pFileInfo->FileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+        return TRUE;
+
+    if( pcm->UpdateFile == false && ((pFileInfo->FileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) )
+        return TRUE;
 
     UNICODE_STRING usFileName;
 
@@ -837,10 +493,10 @@ BOOLEAN CALLBACK EnumFileCallback(HANDLE hDirectory,PCWSTR DirectoryName,
 
 //----------------------------------------------------------------------------
 //
-//  EnumFilesInDirectory()
+//  EnumDirectoryFiles()
 //
 //----------------------------------------------------------------------------
-VOID EnumFilesInDirectory( CCommandRunParam *pcm, UNICODE_STRING *Path, UNICODE_STRING *FileName )
+VOID EnumDirectoryFiles(CCommandRunParam *pcm, UNICODE_STRING *Path, UNICODE_STRING *FileName)
 {
     PWSTR pszPath = AllocateSzFromUnicodeString(Path);
     PWSTR pszName = AllocateSzFromUnicodeString(FileName);
@@ -850,7 +506,7 @@ VOID EnumFilesInDirectory( CCommandRunParam *pcm, UNICODE_STRING *Path, UNICODE_
 
     if( NT_ERROR(Status) )
     {
-        PrintError( Status, pszName );
+        PrintError(Status, pszName);
     }
 
     FreeMemory(pszPath);
@@ -859,15 +515,156 @@ VOID EnumFilesInDirectory( CCommandRunParam *pcm, UNICODE_STRING *Path, UNICODE_
 
 //----------------------------------------------------------------------------
 //
-//  ProcessingFile()
+//  RecursiveEnumDirectoryFilesCallback()
 //
 //----------------------------------------------------------------------------
-BOOLEAN ProcessingFile(CCommandRunParam *pcm,FILEITEM& fi)
+NTSTATUS CALLBACK RecursiveEnumDirectoryFilesCallback(
+    ULONG CallbackReason,
+    PCWSTR Path,
+    PCWSTR RelativePath,
+    UNICODE_STRING *FileName,
+    NTSTATUS Status,
+    ULONG FileInfoType,  // Reserved always zero
+    PVOID FileInfo,      // FILE_ID_BOTH_DIR_INFORMATION
+    ULONG_PTR CallbackContext
+    )
 {
-    UNICODE_STRING SourceFullPath = {0};
-    UNICODE_STRING FileName = {0};
-    RTL_RELATIVE_NAME_U RelativeDirPart = {0};
+    CCommandRunParam *pcm = (CCommandRunParam *)CallbackContext;
+
+    switch( CallbackReason )
+    {
+        case FFCBR_FINDFILE: // process file
+        {
+            if( (pcm->action == Set || pcm->action == Query) && pcm->UpdateFile )
+            {
+                UNICODE_STRING usDirPath;
+                UNICODE_STRING usFullFilePath;
+
+                RtlInitUnicodeString(&usDirPath,Path);
+                CombineUnicodeStringPath(&usFullFilePath,&usDirPath,FileName);
+
+                ActionFileDateTime( pcm, &usFullFilePath );
+
+                RtlFreeUnicodeString(&usFullFilePath);
+            }
+            break;
+        }
+        case FFCBR_DIRECTORYSTART: // open directory
+        {
+            if( pcm->action == Query && pcm->UpdateDirectory )
+            {
+                UNICODE_STRING usDirPath;
+                RtlInitUnicodeString(&usDirPath,Path);
+                ActionFileDateTime( pcm, &usDirPath );
+            }
+            break;
+        }
+        case FFCBR_DIRECTORYEND: // close directory
+        {
+            if( pcm->action == Set && pcm->UpdateDirectory )
+            {
+                UNICODE_STRING usDirPath;
+                RtlInitUnicodeString(&usDirPath,Path);
+                ActionFileDateTime( pcm, &usDirPath );
+            }
+            break;
+        }
+    }
+
+    return 0;
+}
+
+//----------------------------------------------------------------------------
+//
+//  RecursiveEnumDirectoryFiles()
+//
+//----------------------------------------------------------------------------
+VOID RecursiveEnumDirectoryFiles(CCommandRunParam *pcm, UNICODE_STRING *Path, UNICODE_STRING *FileName)
+{
+    TraverseDirectory(*Path,*FileName,TRUE,0,&RecursiveEnumDirectoryFilesCallback,(ULONG_PTR)pcm);
+}
+
+//----------------------------------------------------------------------------
+//
+//  CommandProcessFiles()
+//
+//----------------------------------------------------------------------------
+HRESULT CommandProcessFiles(CCommandRunParam& cmd)
+{
+    HRESULT hr = E_FAIL;
+
+    CCommandRunPath Path;
+
+    CFileItem **pp = cmd.FileList.FirstFile();
+
+#if 0
+    //
+    // Prepare processing
+    //
+    while( pp != NULL )
+    {
+        DeterminePathType(&cmd,**pp,&Path);
+        pp = cmd.FileList.NextFile(pp);
+    }
+#endif
+
+    //
+    // Actual processing
+    //
+    pp = cmd.FileList.FirstFile();
+
+    while( pp != NULL )
+    {
+        DeterminePathType(&cmd,**pp,&Path);
+
+        if( IsDirectory_U(&Path.FullPath) && Path.EnumDirectoryFiles == FALSE && cmd.Recursive )
+        {
+            // If the directory path last character in does not end with '\'
+            // and if cmd.Recursive == true, force setting recursive mode.
+            // example: "\??\C:\windows", "\??\C:\windows\system32"
+            RtlFreeUnicodeString( &Path.FileName );
+            RtlCreateUnicodeString(&Path.FileName,L"*"); 
+            Path.EnumDirectoryFiles = TRUE;
+        }
+
+        BOOLEAN PathExists = NtPathFileExists_U(&Path.FullPath,NULL);
+
+        if( PathExists )
+        {
+            if( IsDirectory_U(&Path.FullPath) )
+            {
+                if( cmd.Recursive && Path.EnumDirectoryFiles )
+                    RecursiveEnumDirectoryFiles(&cmd,&Path.FullPath,&Path.FileName);
+                else if( Path.EnumDirectoryFiles )
+                    EnumDirectoryFiles(&cmd,&Path.FullPath,&Path.FileName);
+                else
+                    ActionFileDateTime(&cmd,&Path.FullPath);
+            }
+            else
+            {
+                ActionFileDateTime(&cmd,&Path.FullPath);
+            }
+        }
+        else
+        {
+            PrintError(STATUS_NO_SUCH_FILE, Path.FileName.Buffer);
+        }
+
+        pp = cmd.FileList.NextFile(pp);
+    }
+
+    return hr;
+}
+
+//----------------------------------------------------------------------------
+//
+//  DeterminePathType()
+//
+//----------------------------------------------------------------------------
+BOOLEAN DeterminePathType(CCommandRunParam *,FILEITEM& fi,COMMAND_RUN_PATH *prunpath)
+{
     BOOLEAN PathExists = FALSE;
+    BOOLEAN Success = FALSE;
 
     __try
     {
@@ -878,12 +675,12 @@ BOOLEAN ProcessingFile(CCommandRunParam *pcm,FILEITEM& fi)
             // In this case absolute path only.
             //
 
-            if( AllocateUnicodeString(&SourceFullPath,fi.pszFilename) == STATUS_SUCCESS )
+            if( AllocateUnicodeString(&prunpath->FullPath,fi.pszFilename) == STATUS_SUCCESS )
             {
-                if( NT_ERROR(GetFileNamePart_U(&SourceFullPath,&FileName)) )
+                if( NT_ERROR(GetFileNamePart_U(&prunpath->FullPath,&prunpath->FileName)) )
                 {
-                    // todo: free SourceFullPath
-                    return TRUE; // skip and continue
+                    Success = FALSE;
+                    __leave;
                 }
             }
         }
@@ -898,70 +695,61 @@ BOOLEAN ProcessingFile(CCommandRunParam *pcm,FILEITEM& fi)
             {
                 // If path string is a relative format, to determine as a DOS path.
                 //
-                RtlDosPathNameToRelativeNtPathName_U(fi.pszFilename,&SourceFullPath,(PWSTR*)&FileNamePart,&RelativeDirPart);
+                RtlDosPathNameToRelativeNtPathName_U(fi.pszFilename,&prunpath->FullPath,(PWSTR*)&FileNamePart,&prunpath->RelativeDirPart);
             }
             else
             {
-                RtlDosPathNameToNtPathName_U(fi.pszFilename,&SourceFullPath,&FileNamePart,NULL);
+                RtlDosPathNameToNtPathName_U(fi.pszFilename,&prunpath->FullPath,&FileNamePart,NULL);
             }
 
             if( FileNamePart != NULL )
-                RtlInitUnicodeString(&FileName,FileNamePart);
+                RtlCreateUnicodeString(&prunpath->FileName,FileNamePart);
         }
 
-        if( SourceFullPath.Buffer == NULL )
+        if( prunpath->FullPath.Buffer == NULL )
         {
-            // fatal error
-            return FALSE; // abort
+            Success = FALSE;
+            __leave; // fatal error, abort
         }
 
-        // If filename part includes wildcard character, split the path 
-        // the directory-part and filename-part.
-        //
-        BOOLEAN bEnumFiles = false;
-        if( HasWildCardChar_U(&FileName) )
+        prunpath->EnumDirectoryFiles = FALSE;
+
+        if( IsRootDirectory_U(&prunpath->FullPath) )
         {
-            // Remove filename spec
-            SplitPathFileName_U(&SourceFullPath,NULL);
-            bEnumFiles = true;
+            ;
         }
-
-        PathExists = NtPathFileExists_U(&SourceFullPath,NULL);
-
-#ifdef _DEBUG
-        PWSTR p1,p2;
-        p1 = AllocateSzFromUnicodeString(&SourceFullPath);
-        p2 = AllocateSzFromUnicodeString(&FileName);
-#endif
-
-        if( PathExists )
+        else if( IsLastCharacterBackslash_U(&prunpath->FullPath) )
         {
-            if( bEnumFiles && IsDirectory_U(&SourceFullPath) )
-            {
-                EnumFilesInDirectory(pcm,&SourceFullPath,&FileName);
-            }
-            else
-            {
-                ActionFileDateTime(pcm,&SourceFullPath);
-            }
+            RtlCreateUnicodeString(&prunpath->FileName,L"*"); 
+            prunpath->EnumDirectoryFiles = TRUE;
         }
         else
         {
-            PrintError( STATUS_NO_SUCH_FILE, FileName.Buffer );
+            // If filename part includes wildcard character, split the path 
+            // the directory-part and filename-part.
+            //
+            if( HasWildCardChar_U(&prunpath->FileName) )
+            {
+                // Remove filename spec
+                SplitPathFileName_U(&prunpath->FullPath,NULL);
+                prunpath->EnumDirectoryFiles = TRUE;
+            }
         }
 
+        Success = TRUE;
+    }
+    __finally
+    {
 #ifdef _DEBUG
+        PWSTR p1,p2;
+        p1 = AllocateSzFromUnicodeString(&prunpath->FullPath);
+        p2 = AllocateSzFromUnicodeString(&prunpath->FileName);
         FreeMemory(p1);
         FreeMemory(p2);
 #endif
     }
-    __finally
-    {
-        RtlReleaseRelativeName(&RelativeDirPart);
-        RtlFreeUnicodeString(&SourceFullPath);
-    }
 
-    return TRUE;
+    return Success;
 }
 
 //----------------------------------------------------------------------------
@@ -1022,8 +810,8 @@ VOID PrintBinToTime(CCommandRunParam *pcm)
         li = pcm->liValue;
     }
 
-    WinGetDateString(li.QuadPart,szDate,ARRAYSIZE(szDate),pcm->pszDateFormat,pcm->UTCMode,0);
-    WinGetTimeString(li.QuadPart,szTime,ARRAYSIZE(szTime),pcm->pszTimeFormat,pcm->UTCMode,0);
+    WinGetDateString(li.QuadPart,szDate,ARRAYSIZE(szDate),pcm->GetDateFormat(),pcm->UTCMode,0);
+    WinGetTimeString(li.QuadPart,szTime,ARRAYSIZE(szTime),pcm->GetTimeFormat(),pcm->UTCMode,0);
     if( pcm->ShowMilliseconds )
     {
         AddMillisecondsString(li,szTime,ARRAYSIZE(szTime));
@@ -1072,10 +860,10 @@ BOOLEAN ParsePrintType(CCommandRunParam *pcm,PCWSTR pszOpt)
 
         if( f != -1 )
         {
-            if( op_check[f] == false )
+            if( op_check[f] == FALSE )
             {
                 type[ch++] = RtlUpcaseUnicodeChar( *pszOpt++ );
-                op_check[f] = true;
+                op_check[f] = TRUE;
             }
             else
             {
@@ -1103,6 +891,8 @@ BOOLEAN ParsePrintType(CCommandRunParam *pcm,PCWSTR pszOpt)
   -l   displays file date/time by a line.
 
   -m   displays milliseconds. 
+
+  -s   if included directory in parameters, do recursive directory scan. 
 
   -t:<type> 
        print type switch:
@@ -1134,7 +924,7 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                 case L'u':
                 case L'U':
                     if( argv[i][2] == L'\0' )
-	                    pcm->UTCMode = true;
+                        pcm->UTCMode = TRUE;
                     else
                         return FALSE; // invalid switch
                     break;
@@ -1142,7 +932,7 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                 case L'b':
                 case L'B':
                     if( argv[i][2] == L'\0' )
-		                pcm->HexDumpMode = true;
+                        pcm->HexDumpMode = TRUE;
                     else
                         return FALSE; // invalid switch
                     break;
@@ -1150,7 +940,7 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                 case L'l':
                 case L'L':
                     if( argv[i][2] == L'\0' )
-                        pcm->LineMode = true;
+                        pcm->LineMode = TRUE;
                     else
                         return FALSE; // invalid switch
                     break;
@@ -1158,7 +948,7 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                 case L'm':
                 case L'M':
                     if( argv[i][2] == L'\0' )
-                        pcm->ShowMilliseconds = true;
+                        pcm->ShowMilliseconds = TRUE;
                     else
                         return FALSE; // invalid switch
                     break;
@@ -1175,18 +965,26 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                 case L'F':
                     if( _wcsnicmp(&argv[i][1],L"fd:",3) == 0 && argv[i][4] != L'\0' )
                     {
-                        if( pcm->pszDateFormat == NULL )
+                        if( pcm->GetDateFormat() == NULL )
                             pcm->SetDateFormat( &argv[i][4] );
                     }
                     else if( _wcsnicmp(&argv[i][1],L"ft:",3) == 0 && argv[i][4] != L'\0' )
                     {
-                        if( pcm->pszTimeFormat == NULL )
+                        if( pcm->GetTimeFormat() == NULL )
                             pcm->SetTimeFormat( &argv[i][4] );
                     }
                     else
                     {
                         return FALSE; // invalid format
                     }
+                    break;
+
+                case L's':
+                case L'S':
+                    if( argv[i][2] == L'\0' )
+                        pcm->Recursive = TRUE;
+                    else
+                        return FALSE; // invalid switch
                     break;
 
                 default:
@@ -1204,11 +1002,14 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
         }
     }
 
-    if( pcm->pszPrintType == NULL )
+    if( pcm->GetPrintType() == NULL )
         pcm->SetPrintType( L"WCAH" );
 
-    if( pcm->pszTimeFormat == NULL )
+    if( pcm->GetTimeFormat() == NULL )
         pcm->SetTimeFormat( L"HH:mm:ss" );
+
+    pcm->UpdateDirectory = TRUE;
+    pcm->UpdateFile = TRUE;
 
     return TRUE;
 }
@@ -1250,6 +1051,9 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
   -y          suppress confirm prompt.
   -r          show result.
   -test       test run mode. enum target files but no update to date/time.
+  -f[o]       when enumeration (with the wild card) or recursive mode (with the -s option),
+              condition matched also directories are update processed.
+              with 'o' option, only for udapte directoies not files.
 
   input format:
      date > "yyyy-mm-dd"
@@ -1279,6 +1083,9 @@ BOOLEAN ParseQueryActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
 --*/
 BOOLEAN ParseSetActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
 {
+    BOOLEAN UpdateDirectory = FALSE;
+    BOOLEAN UpdateFile = TRUE;
+
     pcm->SetLastWriteDate(NULL);
     pcm->SetLastWriteTime(NULL);
     pcm->SetLastWriteBin(NULL);
@@ -1449,6 +1256,31 @@ BOOLEAN ParseSetActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
                     }
                     break;
 
+                case L's':
+                case L'S':
+                    if( argv[i][2] == L'\0' )
+                    {
+                        pcm->Recursive = TRUE;
+                    }
+                    else
+                    {
+                        return FALSE; // invalid format
+                    }
+                    break;
+
+                case L'f':
+                case L'F':
+                    UpdateDirectory = TRUE;
+                    if( argv[i][2] == L'o' || argv[i][2] == L'O' )
+                    {
+                        UpdateFile = FALSE;
+                    }
+                    else if( argv[i][2] != L'\0' )
+                    {
+                        return FALSE; // invalid format
+                    }
+                    break;
+
                 default:
                     return FALSE; // invalid switch
             }
@@ -1487,7 +1319,126 @@ BOOLEAN ParseSetActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
 
     pcm->SetPrintType( L"WCAH" ); // default for result displays.
 
+    pcm->UpdateDirectory = UpdateDirectory;
+    pcm->UpdateFile = UpdateFile;
+
     return bResult;
+}
+
+//----------------------------------------------------------------------------
+//
+//  ParseCopyActionParameter()
+//
+//----------------------------------------------------------------------------
+/*++
+
+  -t:<type> 
+        copy date/time selction switch:
+         w  last write
+         c  creation
+         a  last access
+         h  attribute change
+
+        if this option not specified, same as "w".
+  -f[o] when enumeration (with the wild card) or recursive mode (with the -s option),
+        condition matched also directories are update processed.
+        with 'o' option, only for udapte directoies not files.
+  -a    copy all date/time attributes.
+        cannot be used with -t option.
+  -s    if specified directory at source, dos recursive directory scan.
+  -y    suppress confirm prompt.
+
+--*/
+BOOLEAN ParseCopyActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
+{
+    BOOLEAN bSuccess = FALSE;
+    BOOLEAN bCopyAllDateTime = FALSE;
+    BOOLEAN UpdateDirectory = FALSE;
+    BOOLEAN UpdateFile = TRUE;
+    int i;
+    for(i = 2; i < argc; i++)
+    {
+        bSuccess = TRUE;
+
+        if( argv[i][0] == L'/' || argv[i][0] == L'-' )
+        {
+            switch( argv[i][1] )
+            {
+                case L't':
+                case L'T':
+                    if( !(argv[i][2] == L':' && argv[i][3] != L'\0' && ParsePrintType( pcm, &argv[i][3] )) )
+                    {
+                        return FALSE; // invalid type switch
+                    }
+                    break;
+                case L'a':
+                case L'A':
+                    if( argv[i][2] == L'\0' )
+                        bCopyAllDateTime = TRUE;
+                    else
+                        return FALSE; // invalid format
+                    break;
+                case L's':
+                case L'S':
+                    if( argv[i][2] == L'\0' )
+                        pcm->Recursive = TRUE;
+                    else
+                        return FALSE; // invalid format
+                    break;
+                case L'y':
+                case L'Y':
+                    if( argv[i][2] == L'\0' )
+                        pcm->SuppressPrompt = TRUE;
+                    else
+                        return FALSE; // invalid format
+                    break;
+                case L'f':
+                case L'F':
+                    UpdateDirectory = TRUE;
+                    if( argv[i][2] == L'o' || argv[i][2] == L'O' )
+                        UpdateFile = FALSE;
+                    else if( argv[i][2] != L'\0' )
+                        return FALSE; // invalid format
+                    break;
+                default:
+                    return FALSE; // invalid switch
+            }
+
+            if( !bSuccess ) // something failed.
+                return FALSE;  // invalid specification
+        }
+        else
+        {
+            CFileItem *pfi = new CFileItem;
+
+            pfi->SetFile( argv[i] );
+
+            pcm->FileList.Add( pfi );
+        }
+    }
+
+    if( pcm->FileList.GetCount() != 2 )
+    {
+        // not enough parameters. we must need source and destination at least.
+        return FALSE;
+    }
+
+    if( bCopyAllDateTime == TRUE )
+    {
+        if( pcm->GetPrintType() != NULL )
+            return FALSE; // error: overlapping options -a and -t:.
+        pcm->SetPrintType( L"WCAH" ); // all copy.
+    }
+    else
+    {
+        if( pcm->GetPrintType() == NULL )
+            pcm->SetPrintType( L"W" ); // copy default is LastWrite only.
+    }
+
+    pcm->UpdateDirectory = UpdateDirectory;
+    pcm->UpdateFile = UpdateFile;
+
+    return bSuccess;
 }
 
 //----------------------------------------------------------------------------
@@ -1569,12 +1520,12 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
                         r = swscanf_s(argv[i],L"%d-%d-%d",&year,&month,&day);
 
                         if( r != 3 || (year == -1|| month == -1 || day == -1) )
-                        {		
+                        {
                             __leave;
                         }
 
                         if( !checkValidDate(year,month,day) )
-                        {		
+                        {
                             __leave;
                         }
 
@@ -1589,7 +1540,7 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
                         {
                             r = swscanf_s(argv[i],L"%d:%d:%d.%d",&hour,&minute,&second,&msecond);
                             if( r != 4 || (hour == -1 || minute == -1 || second == -1 || msecond == -1) )
-                            {		
+                            {
                                 __leave;
                             }
                         }
@@ -1597,14 +1548,14 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
                         {
                             r = swscanf_s(argv[i],L"%d:%d:%d",&hour,&minute,&second);
                             if( r != 3 || (hour == -1 || minute == -1 || second == -1) )
-                            {		
+                            {
                                 __leave;
                             }
                             msecond = 0;
                         }
 
                         if( !checkValidTime(hour,minute,second,msecond) )
-                        {		
+                        {
                             __leave;
                         }
     
@@ -1734,19 +1685,19 @@ BOOLEAN ParseBinToTimeActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
 
                     case L'm':
                     case L'M':
-                        pcm->ShowMilliseconds = true;
+                        pcm->ShowMilliseconds = TRUE;
                         break;
 
                     case L'f':
                     case L'F':
                         if( _wcsnicmp(&argv[i][1],L"fd:",3) == 0 && argv[i][4] != L'\0' )
                         {
-                            if( pcm->pszDateFormat == NULL )
+                            if( pcm->GetDateFormat() == NULL )
                                 pcm->SetDateFormat( &argv[i][4] );
                         }
                         else if( _wcsnicmp(&argv[i][1],L"ft:",3) == 0 && argv[i][4] != L'\0' )
                         {
-                            if( pcm->pszTimeFormat == NULL )
+                            if( pcm->GetTimeFormat() == NULL )
                                 pcm->SetTimeFormat( &argv[i][4] );
                         }
                         else
@@ -1831,6 +1782,12 @@ int PrintError( LONG ErrorCode, PCWSTR pszParam )
             else
                 printf("The file does not exist.\n");
             break;
+        case STATUS_NOT_A_DIRECTORY:
+            if( pszParam )
+                printf("The file '%ls' is not directory.\n",pszParam);
+            else
+                printf("The specifies path is not directory.\n");
+            break;
         case STATUS_INVALID_PARAMETER:
             // An invalid combination of parameters was specified.
             printf("The parameter is incorrect.\n");
@@ -1887,6 +1844,8 @@ void Usage()
         "\n"
         "fsfiletime set {date|time|bin} [options] filename\n"
         "\n"
+        "fsfiletime copy [options] source destination\n"
+        "\n"
         "fsfiletime timetobin [options] date [time]\n"
         "\n"
         "fsfiletime bintotime [options] absolute_systemtime_value\n"
@@ -1894,6 +1853,25 @@ void Usage()
         "fsfiletime help\n"
         );
 }
+
+//
+// SourcePath's Specification:
+//
+// \??\c:\windows\file   ... Only target single file as "\??\c:\windows\file" (not directory).
+// \??\c:\windows\*      ... Enumerate files "*" under the "\??\c:\windows". 
+//                           If specified -s option, include sub-directory.
+// \??\c:\windows\*.exe  ... Enumerate files "*.exe" under the "\??\c:\windows". 
+//                           If specified -s option, include sub-directory.
+// \??\c:\windows\       ... Same as "\??\c:\windows\*". 
+// \??\c:\windows        ... The directory "\??\c:\windows" itself is processed.  Not directory contents.
+//
+// If the end of the path is '\', it is determined that the contents of the directory
+// are specified for processing, and FileName = L "*" is set.
+// in short 
+//      DirPath  = "\??\C:\Temp\"
+//      FileName = "*"
+// will be.
+//
 
 //----------------------------------------------------------------------------
 //
@@ -1932,6 +1910,14 @@ int __cdecl wmain(int argc, WCHAR* argv[])
             return PrintError( STATUS_INVALID_PARAMETER );
         }
     }
+    else if( _wcsicmp(cmdstr,L"copy") == 0 )
+    {
+        cmd.action = Copy;
+        if( !ParseCopyActionParameter(argc,argv,&cmd) || cmd.FileList.GetCount() == 0 )
+        {
+            return PrintError( STATUS_INVALID_PARAMETER );
+        }
+    }
     else if( _wcsicmp(cmdstr,L"timetobin") == 0 )
     {
         cmd.action = TimeToBin;
@@ -1958,17 +1944,17 @@ int __cdecl wmain(int argc, WCHAR* argv[])
         return RtlNtStatusToDosError( STATUS_INVALID_PARAMETER );
     }
 
-    if( cmd.action == Query ||  cmd.action == Set )
+    //
+    // Process Command
+    //
+
+    if( cmd.action == Query || cmd.action == Set )
     {
-        CFileItem **pp = cmd.FileList.FirstFile();
-
-        while( pp != NULL )
-        {
-            if( !ProcessingFile(&cmd,**pp) )
-                break;
-
-            pp = cmd.FileList.NextFile(pp);
-        }
+        CommandProcessFiles(cmd);
+    }
+    if( cmd.action == Copy )
+    {
+        CommandCopy(cmd);
     }
     else if( cmd.action == TimeToBin )
     {

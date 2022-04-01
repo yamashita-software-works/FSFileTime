@@ -6,6 +6,7 @@ usage:
 command:
     query
     set
+    copy
     timetobin
     bintotime
     help
@@ -14,7 +15,7 @@ command parameters:
 
     query [options] filename [filename...]
 
-    Displays file's date time.
+    Displays file's timestamp.
 
     -b          displays absolute systemtime value (hex).
     -u, -utc    displays time as UTC.
@@ -23,7 +24,8 @@ command parameters:
     -t:<type>   specifies display date/time type
     -fd:<dateformat> specifies format for date display.
     -ft:<timeformat> specifies format for time display.
-
+    -s          if included directory in parameters, do recursive directory scan. 
+ 
     <type>
       specify by combine the characters that represent the time-attributes
       type. 
@@ -51,6 +53,8 @@ command parameters:
 
     set {<date>|<time>|<bin>} [options] filename [filename...]
 
+    Set timestamp to the specified file.
+
     date/time
     -dw:<date>  set last write date
     -dc:<date>  set creation date
@@ -70,7 +74,7 @@ command parameters:
     -bc:<bin>   set absolute systemtime creation date/time
     -ba:<bin>   set absolute systemtime last access date/time
     -bh:<bin>   set absolute systemtime attribute change date/time
-	-bz:<bin>   set all absolute systemtime 
+    -bz:<bin>   set all absolute systemtime 
 
     date/time  {-d?,-t?}  and  {-b?}  is mutually exclusive.
 
@@ -80,6 +84,11 @@ command parameters:
     -y          suppress confirm prompt.
     -r          show result.
     -test       test run mode. enum target files but no update to date/time.
+    -s          if included directory in parameters, do recursive directory scan. 
+    -f[o]       when enumeration (with the wild card) or recursive mode
+                (with the -s option),condition matched also directories are
+                update processed.
+                with 'o' option (-fo), only for udapte directoies not with files.
          
     specifies format
        <date> "yyyy-mm-dd"
@@ -91,8 +100,8 @@ command parameters:
               current date/time.
 
               NOTE:
-              The date year/month/day order varies country, but we use as 
-              default the Japanese format for simplization.
+              An order of date year/month/,day  varies country, but we only use
+              y-m-d format for simplization.
 
               e.g.
               -wd:"2019-03-01" -wt:"12:34:56"
@@ -109,12 +118,44 @@ command parameters:
 
               e.g.
               input decimal
-              -wb:132000000000000000
+              -bw:132000000000000000
 
               input hex
-              -cb:0x1D5000000000000
+              -bc:0x1D5000000000000
 
     filename    specifies display files.
+
+    -----
+
+    copy [options] source destination
+
+    Copy timestamp source to destination.
+
+    options:
+    -s          if specified directory at source, dos recursive directory scan.
+    -y          suppress confirm prompt.
+
+    -a          copy all date/time attribute. same as '-t:wcah'. 
+                cannot be used with -t option.
+    -f[o]       when enumeration (with the wild card) or recursive mode
+                (with the -s option),condition matched also directories are
+                update processed.
+                with 'o' option (-fo), only for udapte directoies not with files.
+    -t:[wcah]   refer to the 'query'command option. cannot be used with -a option.
+                when not specified default pattern is same as '-t:w'.
+
+    source      specifies directory or filename.
+
+                if you want target is directory contents, source is 
+                directory path and specifies '\' at path tail character 
+                or use wildcard.
+
+                if a file or directory with the same name as the copy source 
+                exists in the copy destination directory, copy timestamp 
+                executed.
+
+    destination if the 'source' target is directory contents, the destination 
+                must be directory. other case, name of target file or directory.
 
     -----
 
@@ -152,10 +193,14 @@ fsfiletime query c:\windows\system32\notepad.exe
 fsfiletime query *.txt
 fsfiletime query *.txt -fd:"yyyy/MM/dd (ddd)"
 
-fsfiletime set c:\foo\bar\myfile.txt -wd:2019-01-01 /wt:01:02:55
+fsfiletime set c:\foo\bar\myfile.txt -wd:2019-01-01 -wt:01:02:55
 fsfiletime set c:\foo\bar\*.txt -zd:2019-03-21
-fsfiletime set c:\foo\bar\myfile.txt -wb:0x132000000000000000
+fsfiletime set c:\foo\bar\myfile.txt -wb:0x1D5000000000000
 
-fsfiletime binttotime 0x132000000000000000
+fsfiletime copy file1.txt file2.txt
+fsfiletime copy c:\xxx\yyy\ d:\target
+fsfiletime copy c:\xxx\yyy d:\target -s
+
+fsfiletime bintotime 0x1D59B6000000000
 
 fsfiletime timetobin 2019-03-01 12:34:56

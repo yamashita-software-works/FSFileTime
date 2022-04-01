@@ -18,9 +18,6 @@
     <ClInclude Include="fsfiletime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fileitem.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -30,6 +27,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="usage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="copydatetime.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

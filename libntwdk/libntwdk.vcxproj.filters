@@ -30,6 +30,9 @@
     <ClCompile Include="ntenumfiles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ntfilehelp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="libntwdk.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="win32helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fileitem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -23,8 +23,5 @@ SOURCES=\
 	ntdirtraverse.cpp\
 	ntnativehelp.cpp\
 	ntenumfiles.cpp\
+	ntfilehelp.cpp\
 	win32Helper.cpp
-
-#LINKLIBS=\
-#	$(DDK_LIB_PATH)\ntdll.lib
-

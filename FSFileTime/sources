@@ -26,6 +26,7 @@ C_DEFINES=$(C_DEFINES) -DUNICODE -D_UNICODE
 
 SOURCES=\
 	fsfiletime.cpp\
+	copydatetime.cpp\
 	usage.cpp\
 	fsfiletime.rc
 

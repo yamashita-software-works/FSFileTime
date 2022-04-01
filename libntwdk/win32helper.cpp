@@ -12,7 +12,7 @@
 #include <strsafe.h>
 #include "win32helper.h"
 
-void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
+void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
 {
     SYSTEMTIME st;
     FILETIME ftLocal;
@@ -35,7 +35,7 @@ void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPTSTR Date
                 pszText,cchTextMax);
 }
 
-void WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
+void WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
 {
     SYSTEMTIME st;
     FILETIME ftLocal;

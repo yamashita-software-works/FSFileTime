@@ -37,7 +37,13 @@ typedef struct _DIRECTORY_TRAVERSE_PARAM
     //
     FINDFILECALLBACK pfnCallback;
     ULONG_PTR CallbackContext;
+
+    UNICODE_STRING FileName;
+
+    ULONG Flags;
 } DIRECTORY_TRAVERSE_PARAM;
+
+#define DTF_NO_PROCESS_WILDCARD 0x1
 
 class __declspec(novtable) CTraverseDirectoryParam : public DIRECTORY_TRAVERSE_PARAM
 {
@@ -147,8 +153,20 @@ static NTSTATUS handleStartDirectory(FILE_ID_BOTH_DIR_INFORMATION *pDirectory,CT
         usFileName.Buffer = (PWCH)pDirectory->FileName;
         usFileName.Length = usFileName.MaximumLength = (USHORT)pDirectory->FileNameLength;
 
+        if( pDTP->FileName.Buffer != NULL && !(pDTP->Flags & DTF_NO_PROCESS_WILDCARD) )
+        {
+            NTSTATUS Status = STATUS_SUCCESS;
+            PWSTR pszPattern = AllocateSzFromUnicodeString(&pDTP->FileName);
+            if( _UStrMatchI_U(pszPattern,&usFileName) )
+            {
+                Status = pDTP->pfnCallback(FFCBR_DIRECTORYSTART,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pDirectory,pDTP->CallbackContext);
+            }
+            FreeMemory(pszPattern);
+            return Status;
+        }
         return pDTP->pfnCallback(FFCBR_DIRECTORYSTART,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pDirectory,pDTP->CallbackContext);
     }
+
     return STATUS_SUCCESS;
 }
 
@@ -160,21 +178,20 @@ static NTSTATUS handleEndDirectory(FILE_ID_BOTH_DIR_INFORMATION *pDirectory,CTra
         usFileName.Buffer = (PWCH)pDirectory->FileName;
         usFileName.Length = usFileName.MaximumLength = (USHORT)pDirectory->FileNameLength;
 
-        return pDTP->pfnCallback(FFCBR_DIRECTORYEND,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),NULL,0,0,pDirectory,pDTP->CallbackContext);
+        if( pDTP->FileName.Buffer != NULL && !(pDTP->Flags & DTF_NO_PROCESS_WILDCARD) )
+        {
+            NTSTATUS Status = STATUS_SUCCESS;
+            PWSTR pszPattern = AllocateSzFromUnicodeString(&pDTP->FileName);
+            if( _UStrMatchI_U(pszPattern,&usFileName) )
+            {
+                Status = pDTP->pfnCallback(FFCBR_DIRECTORYEND,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pDirectory,pDTP->CallbackContext);
+            }
+            FreeMemory(pszPattern);
+            return Status;
+        }
+        return pDTP->pfnCallback(FFCBR_DIRECTORYEND,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pDirectory,pDTP->CallbackContext);
     }
-    return STATUS_SUCCESS;
-}
 
-static NTSTATUS handleError(FILE_ID_BOTH_DIR_INFORMATION *pDirectory,CTraverseDirectoryParam *pDTP,NTSTATUS Status)
-{
-    if( pDTP->pfnCallback )
-    {
-        UNICODE_STRING usFileName;
-        usFileName.Buffer = (PWCH)pDirectory->FileName;
-        usFileName.Length = usFileName.MaximumLength = (USHORT)pDirectory->FileNameLength;
-
-        return pDTP->pfnCallback(FFCBR_ERROR,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),NULL,Status,0,pDirectory,pDTP->CallbackContext);
-    }
     return STATUS_SUCCESS;
 }
 
@@ -186,9 +203,34 @@ static NTSTATUS handleFile(FILE_ID_BOTH_DIR_INFORMATION *pFile,CTraverseDirector
         usFileName.Buffer = (PWCH)pFile->FileName;
         usFileName.Length = usFileName.MaximumLength = (USHORT)pFile->FileNameLength;
 
+        if( pDTP->FileName.Buffer != NULL && !(pDTP->Flags & DTF_NO_PROCESS_WILDCARD) )
+        {
+            NTSTATUS Status = STATUS_SUCCESS;
+            PWSTR pszPattern = AllocateSzFromUnicodeString(&pDTP->FileName);
+            if( _UStrMatchI_U(pszPattern,&usFileName) )
+            {
+                Status = pDTP->pfnCallback(FFCBR_FINDFILE,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pFile,pDTP->CallbackContext);
+            }
+            FreeMemory(pszPattern);
+            return Status;
+        }
+
         return pDTP->pfnCallback(FFCBR_FINDFILE,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,0,0,pFile,pDTP->CallbackContext);
     }
 
+    return STATUS_SUCCESS;
+}
+
+static NTSTATUS handleError(FILE_ID_BOTH_DIR_INFORMATION *pDirectory,CTraverseDirectoryParam *pDTP,NTSTATUS Status)
+{
+    if( pDTP->pfnCallback )
+    {
+        UNICODE_STRING usFileName;
+        usFileName.Buffer = (PWCH)pDirectory->FileName;
+        usFileName.Length = usFileName.MaximumLength = (USHORT)pDirectory->FileNameLength;
+
+        return pDTP->pfnCallback(FFCBR_ERROR,pDTP->GetFullPath(),pDTP->RefRelativeRootPtr(),&usFileName,Status,0,pDirectory,pDTP->CallbackContext);
+    }
     return STATUS_SUCCESS;
 }
 
@@ -196,26 +238,23 @@ static
 NTSTATUS
 _TraverseDirectoryImpl(
     HANDLE hParent,
+    UNICODE_STRING *NtPathName,
     FILE_ID_BOTH_DIR_INFORMATION *pDirectory,
     CTraverseDirectoryParam *pDTP
     )
 {
     HANDLE hDirectory;
     NTSTATUS Status;
-    BOOLEAN	bRestartScan = TRUE;
+    BOOLEAN bRestartScan = TRUE;
     OBJECT_ATTRIBUTES ObjectAttributes;
     IO_STATUS_BLOCK IoStatus = {0};
-    UNICODE_STRING NtPathName;
 
     if( (Status = handleStartDirectory(pDirectory,pDTP)) != STATUS_SUCCESS )
         return Status;
 
     // open directory
     //
-    NtPathName.Buffer = (PWCH)pDirectory->FileName;
-    NtPathName.Length = (USHORT)pDirectory->FileNameLength;
-    NtPathName.MaximumLength = NtPathName.Length;
-    InitializeObjectAttributes(&ObjectAttributes,&NtPathName,0,hParent,NULL);
+    InitializeObjectAttributes(&ObjectAttributes,NtPathName,0,hParent,NULL);
 
     Status = NtOpenFile(&hDirectory,
                 FILE_LIST_DIRECTORY|FILE_TRAVERSE|SYNCHRONIZE,
@@ -267,7 +306,11 @@ _TraverseDirectoryImpl(
                     {
                         pDTP->PushDirectory(p->FileName,p->FileNameLength);
 
-                        Status = _TraverseDirectoryImpl(hDirectory,p,pDTP);
+                        UNICODE_STRING path;
+                        path.Buffer = p->FileName;
+                        path.Length = path.MaximumLength = (USHORT)p->FileNameLength;
+
+                        Status = _TraverseDirectoryImpl(hDirectory,&path,p,pDTP);
 
                         pDTP->PopDirectory(p->FileNameLength);
                     }
@@ -377,7 +420,15 @@ QueryDirectoryEntryInformation(
 //  TraverseDirectory()
 //
 //---------------------------------------------------------------------------
-NTSTATUS TraverseDirectory(UNICODE_STRING& DirectoryFullPath,BOOLEAN bRecursive,FINDFILECALLBACK pfnCallback,ULONG_PTR CallbackContext)
+NTSTATUS
+TraverseDirectory(
+    UNICODE_STRING& DirectoryFullPath,
+    UNICODE_STRING& FileName,
+    BOOLEAN bRecursive,
+    ULONG Flags,
+    FINDFILECALLBACK pfnCallback,
+    ULONG_PTR CallbackContext
+    )
 {
     NTSTATUS Status = STATUS_SUCCESS;
 
@@ -388,6 +439,8 @@ NTSTATUS TraverseDirectory(UNICODE_STRING& DirectoryFullPath,BOOLEAN bRecursive,
     pDTP->pfnCallback = pfnCallback;
     pDTP->CallbackContext = CallbackContext;
     pDTP->bRecursive = bRecursive;
+    pDTP->FileName = FileName;
+    pDTP->Flags = Flags;
 
     if( pDTP->InitTraverseRoot(DirectoryFullPath.Buffer,DirectoryFullPath.Length) == STATUS_SUCCESS )
     {
@@ -395,7 +448,7 @@ NTSTATUS TraverseDirectory(UNICODE_STRING& DirectoryFullPath,BOOLEAN bRecursive,
 
         if( NT_SUCCESS(QueryDirectoryEntryInformation(NULL,&DirectoryFullPath,&pd)) )
         {
-            Status = _TraverseDirectoryImpl(NULL,pd,pDTP);
+            Status = _TraverseDirectoryImpl(NULL,&DirectoryFullPath,pd,pDTP);
 
             FreeMemory(pd);
         }

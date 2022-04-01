@@ -163,11 +163,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="fileitem.h" />
     <ClInclude Include="fsfiletime.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="copydatetime.cpp" />
     <ClCompile Include="fsfiletime.cpp" />
     <ClCompile Include="usage.cpp" />
   </ItemGroup>

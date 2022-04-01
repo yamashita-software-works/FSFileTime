@@ -16,10 +16,10 @@
 
 INT CALLBACK _initialize_libntwdk()
 {
-	return 0;
+    return 0;
 }
 
 INT CALLBACK _uninitialize_libntwdk()
 {
-	return 0;
+    return 0;
 }
