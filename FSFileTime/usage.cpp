@@ -8,7 +8,7 @@
 #include <shlwapi.h>
 #include <stdio.h>
 #include <strsafe.h>
-#include "win32helper.h"
+#include "ntwin32helper.h"
 #include "resource.h"
 
 void PrintHelp()

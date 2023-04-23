@@ -24,13 +24,13 @@
     <ClCompile Include="ntnativehelp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="win32helper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ntenumfiles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ntfilehelp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntwin32helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -44,10 +44,10 @@
     <ClInclude Include="ntnativehelp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="win32helper.h">
+    <ClInclude Include="fileitem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fileitem.h">
+    <ClInclude Include="ntwin32helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

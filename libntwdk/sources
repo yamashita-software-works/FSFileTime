@@ -24,4 +24,4 @@ SOURCES=\
 	ntnativehelp.cpp\
 	ntenumfiles.cpp\
 	ntfilehelp.cpp\
-	win32Helper.cpp
+	ntwin32helper.cpp

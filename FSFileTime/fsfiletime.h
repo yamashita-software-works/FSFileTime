@@ -2,7 +2,7 @@
 
 #include "ntnativeapi.h"
 #include "ntnativehelp.h"
-#include "win32helper.h"
+#include "ntwin32helper.h"
 
 #include "fileitem.h"
 
