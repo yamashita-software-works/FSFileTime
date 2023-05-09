@@ -39,7 +39,7 @@ CopyDateTime(
     FILE_BASIC_INFORMATION biSrc = {0};
     FILE_BASIC_INFORMATION biDst = {0};
 
-    Status = GetFileDateTime(&SrcFilePath,&biSrc);
+    Status = GetFileDateTime_U(&SrcFilePath,&biSrc);
 
     if( Status == STATUS_SUCCESS )
     {
@@ -175,10 +175,12 @@ CALLBACK
 CopyEnumFilesCallback(
     HANDLE hDirectory,
     PCWSTR DirectoryName,
-    FILE_ID_BOTH_DIR_INFORMATION *pFileInfo,
+    PVOID pInfoBuffer,
     ULONG_PTR Context
     )
 {
+	FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = (FILE_ID_BOTH_DIR_INFORMATION *)pInfoBuffer;
+
     if( IS_RELATIVE_DIR_NAME_WITH_UNICODE_SIZE(pFileInfo->FileName,pFileInfo->FileNameLength) )
         return TRUE;
 
@@ -206,7 +208,7 @@ CopyEnumFilesCallback(
     UNICODE_STRING usDstFullPath;
     CombineUnicodeStringPath(&usDstFullPath,&pccs->DestinationPath,&usFileName);
 
-    if( NtPathFileExists_U(&usDstFullPath,NULL) )
+    if( PathFileExists_U(&usDstFullPath,NULL) )
     {
 #if _DEBUG_PRINT
         printf("Source      : %wZ\n",&usSrcFullPath);
@@ -309,13 +311,13 @@ HRESULT CommandCopy(CCommandRunParam& cmd)
         DeterminePathType(&cmd,**ppS,&srcPath) && 
         DeterminePathType(&cmd,**ppD,&dstPath) )
     {
-        if( !NtPathFileExists_U(&srcPath.FullPath,NULL) )
+        if( !PathFileExists_U(&srcPath.FullPath,NULL) )
         {
             PrintError( STATUS_NO_SUCH_FILE, srcPath.FullPath.Buffer );
             return hr;
         }
 
-        if( !NtPathFileExists_U(&dstPath.FullPath,NULL) )
+        if( !PathFileExists_U(&dstPath.FullPath,NULL) )
         {
             PrintError( STATUS_NO_SUCH_FILE, dstPath.FullPath.Buffer  );
             return hr;

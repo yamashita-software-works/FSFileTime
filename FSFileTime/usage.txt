@@ -17,6 +17,9 @@ command parameters:
 
     Displays file's timestamp.
 
+    filename    specifies target file name.
+
+    options:
     -b          displays absolute systemtime value (hex).
     -u, -utc    displays time as UTC.
     -l          displays line mode.
@@ -27,7 +30,7 @@ command parameters:
     -s          if included directory in parameters, do recursive directory scan. 
  
     <type>
-      specify by combine the characters that represent the time-attributes
+      Specify by combine the characters that represent the time-attributes
       type. 
 
       w  Last Write Time
@@ -35,19 +38,17 @@ command parameters:
       a  Last Access Time
       h  Attribute Chage Time
 
-      if not specified type, the default is "-t:wcah". 
+      If not specified <type>, result same as "-t:wcah".
 
     <dataformat>
-      the format is refer to document for Win32 the GetDateFormat function.
+      The format is refer to document for Win32 the GetDateFormat function.
       e.g.
           -fd:yyyy/MM/dd(ddd)
 
     <timeformat>
-      the format is refer to document for Win32 the GetTimeFormat function.
+      The format is refer to document for Win32 the GetTimeFormat function.
       e.g.
           -ft:"tt hh:mm:ss"
-
-    filename    specifies display files.
 
     -----
 
@@ -76,19 +77,22 @@ command parameters:
     -bh:<bin>   set absolute systemtime attribute change date/time
     -bz:<bin>   set all absolute systemtime 
 
-    date/time  {-d?,-t?}  and  {-b?}  is mutually exclusive.
+                date/time {-d?,-t?}  and  {-b?}  is mutually exclusive.
 
-    options
+    filename    specifies target file name.
+
+    options:
     -u, -utc    set time as UTC.
     -dos, -fat  set time as ms-dos time.
     -y          suppress confirm prompt.
     -r          show result.
     -test       test run mode. enum target files but no update to date/time.
     -s          if included directory in parameters, do recursive directory scan. 
-    -f[o]       when enumeration (with the wild card) or recursive mode
+    -f[o]       when enumeration (with wild card) or recursive mode
                 (with the -s option),condition matched also directories are
-                update processed.
-                with 'o' option (-fo), only for udapte directoies not with files.
+                update.
+                with 'o' option (-fo), only directories are processed files are 
+                not updated.
          
     specifies format
        <date> "yyyy-mm-dd"
@@ -104,11 +108,11 @@ command parameters:
               y-m-d format for simplization.
 
               e.g.
-              -wd:"2019-03-01" -wt:"12:34:56"
-              -cd:"2019-03-01" -ct:@now
-              -zd:@now
+              -dw:"2019-03-01" -tw:"12:34:56"
+              -dc:"2019-03-01" -tc:@now
+              -dz:@now
 
-       <bin>  decimal or hex value. use prefix "0x" as hex input.
+       <bin>  Decimal or hex value. use prefix "0x" as hex input.
 
               The specified value is directly set to file's 64bit absolute
               system time.
@@ -122,8 +126,6 @@ command parameters:
 
               input hex
               -bc:0x1D5000000000000
-
-    filename    specifies display files.
 
     -----
 
@@ -139,8 +141,9 @@ command parameters:
                 cannot be used with -t option.
     -f[o]       when enumeration (with the wild card) or recursive mode
                 (with the -s option),condition matched also directories are
-                update processed.
-                with 'o' option (-fo), only for udapte directoies not with files.
+                update.
+                with 'o' option (-fo), only directories are processed files are 
+                not updated.
     -t:[wcah]   refer to the 'query'command option. cannot be used with -a option.
                 when not specified default pattern is same as '-t:w'.
 
@@ -164,7 +167,7 @@ command parameters:
     Displays absolute system time value from specified date time.
     If specified '@now', displays current absolute system time.
 
-    options
+    options:
     -u, -utc    specifies date/time is treat as UTC.
     -fd:<dateformat> specifies format for date display.
     -ft:<timeformat> specifies format for time display.
@@ -175,7 +178,7 @@ command parameters:
 
     Displays date time from the specified system time value.
 
-    options
+    options:
     -dos        treat specified value as the absolute seconds since 1980. 
     -unix       treat specified value as the absolute seconds since 1970. 
     -u, -utc    displays date/time as UTC. does not convert to localtime.

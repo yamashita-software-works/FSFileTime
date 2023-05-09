@@ -17,9 +17,8 @@
 #include <locale.h>
 #include <conio.h>
 #include <winerror.h>
-
 #include "ntnativeapi.h"
-#include "ntnativehelp.h"
+#include "libntwdk.h"
 
 #define _PAGESIZE 4096
 
@@ -27,8 +26,12 @@
 //
 //  EnumFiles()
 //
+//  PURPOSE: Simple enumerate files with NT native API. 
+//
 //---------------------------------------------------------------------------
+EXTERN_C
 NTSTATUS
+NTAPI
 EnumFiles(
     HANDLE hRoot,
     PCWSTR pszDirectoryPath,
@@ -44,7 +47,7 @@ EnumFiles(
     IO_STATUS_BLOCK IoStatus;
     UNICODE_STRING NtPathName;
     UNICODE_STRING FileName;
-    FILE_ID_BOTH_DIR_INFORMATION *pBuffer = NULL;
+    PVOID pBuffer = NULL;
     ULONG cbBuffer = _PAGESIZE * 8;
 
     if( pszDirectoryPath == NULL )
@@ -58,7 +61,7 @@ EnumFiles(
     else
         RtlInitUnicodeString(&FileName,pszFileName);
 
-    pBuffer = (FILE_ID_BOTH_DIR_INFORMATION*)AllocMemory( cbBuffer );
+    pBuffer = AllocMemory( cbBuffer );
 
     if( pBuffer == NULL )
         return STATUS_NO_MEMORY;
@@ -92,7 +95,7 @@ EnumFiles(
 
             if( Status == STATUS_SUCCESS )
             {
-                FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = pBuffer;
+                FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = (FILE_ID_BOTH_DIR_INFORMATION *)pBuffer;
 
                 for(;;)
                 {
@@ -116,6 +119,9 @@ EnumFiles(
         }
         while( Status == STATUS_SUCCESS );
 
+        if( STATUS_NO_MORE_FILES == Status )
+            Status = STATUS_SUCCESS;
+
         NtClose(hDirectory);
     }
 
@@ -124,4 +130,71 @@ EnumFiles(
     // NOTE:
     // status STATUS_NO_MORE_FILES is return through as it is.
     return Status;
+}
+
+//---------------------------------------------------------------------------
+//
+//  WinEnumFiles()
+//
+//---------------------------------------------------------------------------
+typedef struct _INTERNAL_CALLBACK_BUFFER
+{
+    PVOID Callback;
+    PVOID Context;
+    ULONG Flags;
+} INTERNAL_CALLBACK_BUFFER;
+
+static
+BOOLEAN
+CALLBACK
+EnumFilesCallback(
+    HANDLE hDirectory,
+    PCWSTR DirectoryName,
+    PVOID FileInfo,
+    ULONG_PTR CallbackContext
+    )
+{
+    HRESULT hr;
+    INTERNAL_CALLBACK_BUFFER *pcb = (INTERNAL_CALLBACK_BUFFER *)CallbackContext;
+
+    FSDIRENUMCALLBACKINFO fsdecbi;
+    fsdecbi.DirectoryHandle = hDirectory;
+    fsdecbi.Path = DirectoryName;
+
+    FILE_ID_BOTH_DIR_INFORMATION *pBoth = (FILE_ID_BOTH_DIR_INFORMATION *)FileInfo;
+
+    UNICODE_STRING usName;
+    usName.Length = usName.MaximumLength = (USHORT)pBoth->FileNameLength;
+    usName.Buffer = pBoth->FileName;
+
+    hr = ((FSHELPENUMCALLBACKPROC)pcb->Callback)(0,FileInfo,&fsdecbi,pcb->Context);
+
+    return hr == S_OK ? TRUE : FALSE;
+}
+
+EXTERN_C
+HRESULT
+__stdcall
+WinEnumFiles(
+    PCWSTR Path,
+    PCWSTR FileNameFilter,
+    ULONG Flags,
+    FSHELPENUMCALLBACKPROC Callback,
+    PVOID Context
+    )
+{
+    NTSTATUS Status;
+    UNICODE_STRING NtPath = {0};
+
+	RtlCreateUnicodeString(&NtPath,Path);
+
+    INTERNAL_CALLBACK_BUFFER cb;
+    cb.Callback = Callback;
+    cb.Context  = Context;
+
+    Status = EnumFiles(NULL,NtPath.Buffer,FileNameFilter,&EnumFilesCallback,(ULONG_PTR)&cb);
+
+    RtlFreeUnicodeString(&NtPath);
+
+    return RtlNtStatusToDosError(Status);
 }

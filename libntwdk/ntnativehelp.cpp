@@ -20,6 +20,38 @@
 #include "ntnativeapi.h"
 #include "ntnativehelp.h"
 
+#define PRIVATE static
+
+EXTERN_C
+void
+NTAPI
+_SetLastStatusDos(
+    NTSTATUS ntStatus
+    )
+{
+    RtlSetLastWin32Error( RtlNtStatusToDosError(ntStatus) );
+}
+
+EXTERN_C
+void
+NTAPI
+_SetLastWin32Error(
+    ULONG Win32ErrorCode
+    )
+{
+    RtlSetLastWin32Error( Win32ErrorCode );
+}
+
+EXTERN_C
+void
+NTAPI
+_SetLastNtStatus(
+    NTSTATUS ntStatus
+    )
+{
+    RtlSetLastWin32Error( ntStatus );
+}
+
 HANDLE _GetProcessHeap()
 {
     HANDLE HeapHandle;
@@ -27,27 +59,32 @@ HANDLE _GetProcessHeap()
     return HeapHandle;
 }
 
-PVOID AllocMemory(SIZE_T cb)
+EXTERN_C PVOID NTAPI AllocMemory(SIZE_T cb)
 {
     return RtlAllocateHeap(_GetProcessHeap(),HEAP_ZERO_MEMORY,cb);
 }
 
-PVOID ReAllocateHeap(PVOID pv,SIZE_T cb)
+EXTERN_C PVOID NTAPI ReAllocateHeap(PVOID pv,SIZE_T cb)
 {
     return RtlReAllocateHeap(_GetProcessHeap(),0,pv,cb);
 }
 
-WCHAR *AllocStringBuffer(ULONG cch)
+EXTERN_C WCHAR* NTAPI AllocStringBuffer(SIZE_T cch)
 {
     return (WCHAR *)RtlAllocateHeap(_GetProcessHeap(),HEAP_ZERO_MEMORY,cch*sizeof(WCHAR));
 }
 
-VOID FreeMemory(PVOID ptr)
+EXTERN_C WCHAR* NTAPI AllocStringBufferCb(SIZE_T cb)
+{
+    return (WCHAR *)RtlAllocateHeap(_GetProcessHeap(),HEAP_ZERO_MEMORY,cb);
+}
+
+EXTERN_C VOID NTAPI FreeMemory(PVOID ptr)
 {
     RtlFreeHeap(_GetProcessHeap(),0,ptr);
 }
 
-NTSTATUS AllocateUnicodeString(UNICODE_STRING *pus,PCWSTR psz)
+EXTERN_C NTSTATUS NTAPI AllocateUnicodeString(UNICODE_STRING *pus,PCWSTR psz)
 {
     UNICODE_STRING us;
     RtlInitUnicodeString(&us,psz);
@@ -56,14 +93,32 @@ NTSTATUS AllocateUnicodeString(UNICODE_STRING *pus,PCWSTR psz)
         &us,pus);
 }
 
-NTSTATUS DuplicateUnicodeString(UNICODE_STRING *pusDup,UNICODE_STRING *pusSrc)
+EXTERN_C NTSTATUS NTAPI DuplicateUnicodeString(UNICODE_STRING *pusDup,UNICODE_STRING *pusSrc)
 {
     return RtlDuplicateUnicodeString(
         RTL_DUPLICATE_UNICODE_STRING_NULL_TERMINATE|RTL_DUPLICATE_UNICODE_STRING_ALLOCATE_NULL_STRING,
         pusSrc,pusDup);
 }
 
-PWSTR AllocateSzFromUnicodeString(UNICODE_STRING *pus)
+EXTERN_C NTSTATUS NTAPI AllocateUnicodeStringCbBuffer(UNICODE_STRING *pus,ULONG cb)
+{
+    pus->Length = 0;
+    pus->MaximumLength = (USHORT)cb;
+    pus->Buffer = (PWSTR)AllocMemory( cb );
+    if( pus->Buffer == NULL )
+    {
+        pus->Length = pus->MaximumLength = 0;
+        return STATUS_NO_MEMORY;
+    }
+    return STATUS_SUCCESS;
+}
+
+EXTERN_C NTSTATUS NTAPI AllocateUnicodeStringCchBuffer(UNICODE_STRING *pus,ULONG cch)
+{
+    return AllocateUnicodeStringCbBuffer(pus,WCHAR_BYTES(cch));
+}
+
+EXTERN_C PWSTR NTAPI AllocateSzFromUnicodeString(UNICODE_STRING *pus)
 {
     PWSTR psz;
     psz = (PWSTR)AllocMemory( pus->Length + sizeof(WCHAR) );
@@ -72,6 +127,21 @@ PWSTR AllocateSzFromUnicodeString(UNICODE_STRING *pus)
         RtlCopyMemory(psz,pus->Buffer,pus->Length);
     }
     return psz;
+}
+
+EXTERN_C PWSTR NTAPI AllocStringLengthCb(PCWSTR psz,SIZE_T cb)
+{
+    PWSTR pszDup = AllocStringBuffer( (ULONG)(cb) + sizeof(WCHAR) );
+    RtlCopyMemory(pszDup,psz,cb);
+    return pszDup;
+}
+
+EXTERN_C PWSTR NTAPI DuplicateString(PCWSTR psz)
+{
+    SIZE_T cch = wcslen(psz);
+    PWSTR pszDup = AllocStringBuffer( (ULONG)(cch + 1) );
+    RtlCopyMemory(pszDup,psz,cch * sizeof(WCHAR) );
+    return pszDup;
 }
 
 //
@@ -189,16 +259,19 @@ BOOLEAN IsNtDevicePath(PCWSTR pszPath)
     // In following case, it is determined to be the NT device path. 
     // "\Device\"
     // "\??\" 
+#if 0
     return (_wcsnicmp(pszPath,L"\\Device\\",8) == 0) ||  
            (_wcsnicmp(pszPath,L"\\??\\",4) == 0);
-/*++
-BOOLEAN 
-RtlPrefixUnicodeString( 
-    IN PUNICODE_STRING  String1, 
-    IN PUNICODE_STRING  String2, 
-    IN BOOLEAN  CaseInSensitive 
-    );
---*/
+#else
+    UNICODE_STRING usPath;
+    UNICODE_STRING usGlobalPrefix = {8,8,L"\\??\\"};
+    UNICODE_STRING usDevicePrefix = {16,16,L"\\Device\\"};
+
+    RtlInitUnicodeString(&usPath,pszPath);
+
+    return (RtlPrefixUnicodeString(&usGlobalPrefix,&usPath,TRUE) ||
+            RtlPrefixUnicodeString(&usDevicePrefix,&usPath,TRUE));
+#endif
 }
 
 BOOLEAN HasPrefix(PCWSTR pszPrefix,PCWSTR pszPath)
@@ -362,7 +435,143 @@ BOOLEAN IsRootDirectory_U(UNICODE_STRING *pusFullyPath)
     return FALSE;
 }
 
-BOOLEAN NtPathFileExists_U(UNICODE_STRING *pusPath,ULONG *FileAttributes)
+NTSTATUS FindRootDirectory_U(UNICODE_STRING *pusFullyQualifiedPath,PWSTR *pRootDirectory)
+{
+    if( pusFullyQualifiedPath == NULL || pusFullyQualifiedPath->Buffer == NULL || pusFullyQualifiedPath->Length == 0 )
+        return STATUS_INVALID_PARAMETER;
+
+    int ParseStartPos = 0;
+
+    UNICODE_STRING usPrefix;
+
+    RtlInitUnicodeString(&usPrefix,L"\\??\\");
+
+    if( RtlPrefixUnicodeString(&usPrefix,pusFullyQualifiedPath,TRUE) )
+    {
+        //
+        // Find root directory from global root  prefixed.
+        // "\??\C:\", "\??\HarddiskVolume1\", "\??\Volume{xxx...xxx}\"
+        //
+        ParseStartPos = 4;
+    }
+    else
+    {
+        RtlInitUnicodeString(&usPrefix,L"\\Device\\");
+
+        if( RtlPrefixUnicodeString(&usPrefix,pusFullyQualifiedPath,TRUE) )
+        {
+            //
+            // Find root directory from NT device path.
+            // "\Device\HarddiskVolume1\", "\Device\CdRom1\"
+            //
+            ParseStartPos = 8;
+        }
+        else
+        {
+            //
+            // Find root directory from DOS drive path.
+            // "C:\"
+            //
+            if( (WCHAR_LENGTH(pusFullyQualifiedPath->Length) > 3)
+                && (pusFullyQualifiedPath->Buffer[1] == L':')
+                && ((L'a' <= pusFullyQualifiedPath->Buffer[0] && pusFullyQualifiedPath->Buffer[0] <= L'z')||
+                    (L'A' <= pusFullyQualifiedPath->Buffer[0] && pusFullyQualifiedPath->Buffer[0] <= L'Z')) )
+            {
+                ParseStartPos = 2;
+            }
+        }
+    }
+
+    if( ParseStartPos != 0 )
+    {
+        //
+        //  0123(Skip=4)
+        //  |--|
+        //  \??\C:\
+        //      |-|
+        //       root
+        //  \??\HarddiskVolume1\
+        //      |--------------|
+        //                    root
+        //  01234567(Skip=8)
+        //  |------|
+        //  \Device\HarddiskVolume1\
+        //          |--------------|
+        //                        root
+        //  01(Len=2,no skip part)
+        //  ||
+        //  C:\
+        //    |
+        //    root
+        //
+        // Invalid format.
+        // "\Device\", "\Device", "\Device\\", "\Device\\HarddiskVolume"
+        // "\??\\", 
+        //
+        // Not root directory, this is device name.
+        // "\Device\HarddiskVolume1", "\Device\CdRom1" , "\??\C:" , "C:"
+        //
+
+        int cch = (WCHAR_LENGTH(pusFullyQualifiedPath->Length)-ParseStartPos);
+        if( cch <= 1 )
+            return STATUS_OBJECT_PATH_INVALID;
+
+        WCHAR *p = &pusFullyQualifiedPath->Buffer[ParseStartPos];
+
+        for(int i = 0; i < cch; i++)
+        {
+            if( *p == L'\\' )
+            {
+                *pRootDirectory = p;
+                return STATUS_SUCCESS; // root found
+            }
+            p++;
+        }
+        *pRootDirectory = NULL;
+        return STATUS_OBJECT_PATH_NOT_FOUND; // root not found
+    }
+
+    *pRootDirectory = NULL;
+    return STATUS_OBJECT_PATH_SYNTAX_BAD; // invalid path
+}
+
+BOOLEAN GetRootDirectory_U(UNICODE_STRING *pusFullyQualifiedPath)
+{
+    if( pusFullyQualifiedPath == NULL || pusFullyQualifiedPath->Buffer == NULL || pusFullyQualifiedPath->Length == 0 )
+        return FALSE;
+
+    PWSTR pRootDirectory = NULL;
+    if( FindRootDirectory_U(pusFullyQualifiedPath,&pRootDirectory) == STATUS_SUCCESS )
+    {
+        pusFullyQualifiedPath->Length = (USHORT)((pRootDirectory - pusFullyQualifiedPath->Buffer) + 1) * sizeof(WCHAR);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOLEAN GetVolumeName_U(UNICODE_STRING *pusFullyQualifiedPath)
+{
+    if( pusFullyQualifiedPath == NULL || pusFullyQualifiedPath->Buffer == NULL || pusFullyQualifiedPath->Length == 0 )
+        return FALSE;
+
+    PWSTR pRootDirectory = NULL;
+    NTSTATUS Status = FindRootDirectory_U(pusFullyQualifiedPath,&pRootDirectory);
+
+    if( Status == STATUS_SUCCESS )
+    {
+        pusFullyQualifiedPath->Length = (USHORT)((pRootDirectory - pusFullyQualifiedPath->Buffer) * sizeof(WCHAR));
+        return TRUE;
+    }
+    else if( Status == STATUS_OBJECT_PATH_NOT_FOUND )
+    {
+        // The root directory not found. Specified path is volume name.
+        return TRUE;
+    }
+    return FALSE;
+}
+
+BOOLEAN PathFileExists_U(UNICODE_STRING *pusPath,ULONG *FileAttributes)
 {
     OBJECT_ATTRIBUTES oa = {0};
     FILE_NETWORK_OPEN_INFORMATION fi = {0};
@@ -378,7 +587,30 @@ BOOLEAN NtPathFileExists_U(UNICODE_STRING *pusPath,ULONG *FileAttributes)
     return FALSE;
 }
 
-void GetCurrentDirectory()
+BOOLEAN PathFileExists_UEx(HANDLE hParentDir,UNICODE_STRING *pusPath,ULONG *FileAttributes)
+{
+    OBJECT_ATTRIBUTES oa = {0};
+    FILE_NETWORK_OPEN_INFORMATION fi = {0};
+
+    InitializeObjectAttributes(&oa,pusPath,0,hParentDir,0);
+
+    if( NtQueryFullAttributesFile(&oa,&fi) == STATUS_SUCCESS )
+    {
+        if( FileAttributes )
+            *FileAttributes = fi.FileAttributes;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+BOOLEAN PathFileExists_W(PCWSTR pszPath,ULONG *FileAttributes)
+{
+    UNICODE_STRING usPath;
+    RtlInitUnicodeString(&usPath,pszPath);
+    return PathFileExists_U(&usPath,FileAttributes);
+}
+
+PRIVATE VOID GetCurrentDirectory()
 {
     WCHAR PathBuffer[WIN32_MAX_PATH];
     RtlGetCurrentDirectory_U(PATH_BUFFER_LENGTH,PathBuffer);
@@ -390,11 +622,23 @@ void GetCurrentDirectory()
     }
 }
 
-PWSTR MakeFullPath(PCWSTR pszPath)
+PRIVATE PWSTR MakeFullPath(PCWSTR pszPath)
 {
     WCHAR szFullPath[WIN32_MAX_PATH];
     RtlGetFullPathName_U(pszPath,ARRAYSIZE(szFullPath),szFullPath,NULL);
     return _wcsdup(szFullPath);
+}
+
+PWSTR DosPathNameToNtPathName(PCWSTR pszDosPath)
+{
+    PWSTR pszNtPath = NULL;
+    UNICODE_STRING NtPathName;
+    if( RtlDosPathNameToNtPathName_U(pszDosPath,&NtPathName,NULL,NULL) )
+    {
+        pszNtPath = AllocateSzFromUnicodeString(&NtPathName);
+        RtlFreeUnicodeString(&NtPathName);
+    }
+    return pszNtPath;
 }
 
 NTSTATUS GetFileNamePart_U(UNICODE_STRING *FilePath,UNICODE_STRING *FileName)
@@ -440,6 +684,38 @@ NTSTATUS SplitPathFileName_U(UNICODE_STRING *Path,UNICODE_STRING *FileName)
     return Status;
 }
 
+BOOLEAN SplitRootRelativePath(PCWSTR pszFullPath,UNICODE_STRING *RootDirectory,UNICODE_STRING *RootRelativePath)
+{
+    UNICODE_STRING usRootDirectory;
+
+    RtlInitUnicodeString(&usRootDirectory,pszFullPath);
+
+    if( !GetRootDirectory_U(&usRootDirectory) )
+    {
+        return FALSE;
+    }
+
+    *RootDirectory = usRootDirectory;
+
+    int cb = WCHAR_BYTES( (int)wcslen(pszFullPath) );
+    if( ((cb - usRootDirectory.Length) >= 65536) || ((cb - usRootDirectory.MaximumLength) >= 65536) )
+        return FALSE;
+
+    RootRelativePath->Length        = (USHORT)(cb - usRootDirectory.Length);
+    RootRelativePath->MaximumLength = (USHORT)(cb - usRootDirectory.MaximumLength);
+    RootRelativePath->Buffer        = (PWCH)&pszFullPath[ WCHAR_LENGTH(usRootDirectory.Length) ];
+
+#ifdef _DEBUG
+    UNICODE_STRING us1,us2;
+    RtlDuplicateUnicodeString(0x3,RootDirectory,&us1);
+    RtlDuplicateUnicodeString(0x3,RootRelativePath,&us2);
+    RtlFreeUnicodeString(&us1);
+    RtlFreeUnicodeString(&us2);
+#endif
+
+    return TRUE;
+}
+
 BOOLEAN IsLastCharacterBackslash_U(UNICODE_STRING *pusPath)
 {
     if( pusPath->Length < sizeof(WCHAR) || pusPath->MaximumLength == 0 )
@@ -448,7 +724,7 @@ BOOLEAN IsLastCharacterBackslash_U(UNICODE_STRING *pusPath)
     return ( pusPath->Buffer[WCHAR_LENGTH(pusPath->Length)-1] == L'\\' );
 }
 
-BOOLEAN IsLastCharacterBackslash(PWSTR pszPath)
+BOOLEAN IsLastCharacterBackslash(PCWSTR pszPath)
 {
     int cch = (int)wcslen(pszPath);
     if( cch > 0 )
@@ -476,6 +752,19 @@ VOID RemoveBackslash(PWSTR pszPath)
     }
 }
 
+VOID RemoveFileSpec(PWSTR pszPath)
+{
+    UNICODE_STRING us;
+
+    RtlInitUnicodeString(&us,pszPath);
+    if( SplitPathFileName_U(&us,NULL) == STATUS_SUCCESS )
+    {
+        if( !IsRootDirectory_U(&us) )
+            RemoveBackslash_U(&us);
+        pszPath[ us.Length / sizeof(WCHAR) ] = UNICODE_NULL;
+    }
+}
+
 PWSTR CombinePath(PCWSTR pszPath,PCWSTR pszFileName)
 {
     WCHAR *psz;
@@ -492,7 +781,7 @@ PWSTR CombinePath(PCWSTR pszPath,PCWSTR pszFileName)
         }
     }
 
-    cch = cchPath + wcslen(pszFileName) + 1;
+    cch += cchPath + wcslen(pszFileName) + 1;
 
     psz = AllocStringBuffer((ULONG)cch);
 
@@ -589,6 +878,40 @@ NTSTATUS CombineUnicodeStringPath(UNICODE_STRING *CombinedPath,UNICODE_STRING *P
     }
 
     return STATUS_SUCCESS;
+}
+
+EXTERN_C
+NTSTATUS
+NTAPI
+StringFromGUID(
+    __in  const GUID *Guid,
+    __out LPWSTR lpszGuid,
+    __in  int cchMax
+    )
+{
+    UNICODE_STRING GuidString;
+    NTSTATUS Status;
+
+    Status = RtlStringFromGUID( *Guid, &GuidString );
+
+    if( Status == STATUS_SUCCESS )
+    {
+        // cchGuid is must include terminate null.
+        if( cchMax <= (int)(GuidString.Length/sizeof(WCHAR)) )
+        {
+            Status = STATUS_BUFFER_TOO_SMALL;
+        }
+        else
+        {
+            memcpy(lpszGuid,GuidString.Buffer,GuidString.Length);
+            lpszGuid[ WCHAR_LENGTH(GuidString.Length) ] = L'\0';
+        }
+        RtlFreeUnicodeString(&GuidString);
+    }
+    
+    Status = RtlNtStatusToDosError(Status);
+
+    return Status;
 }
 
 //

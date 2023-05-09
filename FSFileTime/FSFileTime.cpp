@@ -34,7 +34,7 @@ HRESULT AddMillisecondsString(LARGE_INTEGER& DateTime,LPTSTR pszText,int cchText
 
     RtlTimeToTimeFields(&DateTime,&tf);
 
-    hr = StringCchPrintf(szMilliseconds,ARRAYSIZE(szMilliseconds),L".%u",tf.Milliseconds);
+    hr = StringCchPrintf(szMilliseconds,ARRAYSIZE(szMilliseconds),L".%03u",tf.Milliseconds);
     if( hr == S_OK )
     {
         hr = StringCchCat(pszText,cchTextMax,szMilliseconds);
@@ -460,8 +460,10 @@ VOID ActionFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFull
 //
 //----------------------------------------------------------------------------
 BOOLEAN CALLBACK EnumFileCallback(HANDLE hDirectory,PCWSTR DirectoryName,
-                                  FILE_ID_BOTH_DIR_INFORMATION *pFileInfo,ULONG_PTR Context)
+                                  PVOID pInfoBuffer,ULONG_PTR Context)
 {
+	FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = (FILE_ID_BOTH_DIR_INFORMATION *)pInfoBuffer;
+
     if( IS_RELATIVE_DIR_NAME_WITH_UNICODE_SIZE(pFileInfo->FileName,pFileInfo->FileNameLength) )
         return TRUE;
 
@@ -627,7 +629,7 @@ HRESULT CommandProcessFiles(CCommandRunParam& cmd)
             Path.EnumDirectoryFiles = TRUE;
         }
 
-        BOOLEAN PathExists = NtPathFileExists_U(&Path.FullPath,NULL);
+        BOOLEAN PathExists = PathFileExists_U(&Path.FullPath,NULL);
 
         if( PathExists )
         {

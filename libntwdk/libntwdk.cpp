@@ -10,9 +10,9 @@
 //*  Licensed under the MIT License.                                        *
 //*                                                                         *
 //***************************************************************************
-#include "libntwdk.h"
-
 #include <windows.h>
+
+#include "libntwdk.h"
 
 INT CALLBACK _initialize_libntwdk()
 {

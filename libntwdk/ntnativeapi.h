@@ -1,17 +1,9 @@
 #pragma once
-
-#ifndef NTAPI
-#define NTAPI __stdcall
-#endif
-
-#ifndef STDCALL
-#define STDCALL __stdcall
-#endif
-
-#ifndef CALLBACK
-#define CALLBACK __stdcall
-#endif
-
+//
+// ntnativeapi.h
+//
+// NT native API definitions.
+//
 EXTERN_C
 VOID
 NTAPI
@@ -56,25 +48,7 @@ RtlReAllocateHeap(
 // Path Runtime Routine
 //
 
-#define DOS_MAX_COMPONENT_LENGTH 255
-#define DOS_MAX_PATH_LENGTH (DOS_MAX_COMPONENT_LENGTH + 5)
-#define WIN32_MAX_PATH DOS_MAX_PATH_LENGTH
-
-#define ANSI_NULL ((CHAR)0)     
-#define UNICODE_NULL ((WCHAR)0) 
-#define UNICODE_STRING_MAX_BYTES ((USHORT) 65534) 
-#define UNICODE_STRING_MAX_CHARS (32767) 
-
-#define PATH_BUFFER_BYTES   (UNICODE_STRING_MAX_BYTES + sizeof(WCHAR))
-#define PATH_BUFFER_LENGTH  (UNICODE_STRING_MAX_CHARS)
-
-#define IS_RELATIVE_DIR_NAME_WITH_UNICODE_SIZE(path,size) \
-            ((path[0] == L'.' && size == sizeof(WCHAR)) || \
-            (path[0] == L'.' && path[1] == L'.' && (size == (sizeof(WCHAR)*2))))
-
-#define WCHAR_LENGTH(u) ((u) / sizeof(WCHAR))
-#define WCHAR_BYTES(w) ((w) * sizeof(WCHAR))
-#define WCHAR_CHARS(u) WCHAR_LENGTH(u)
+#include "ntpathcomponent.h"
 
 typedef struct _CURDIR
 {
@@ -350,6 +324,7 @@ typedef struct RTL_DRIVE_LETTER_CURDIR
     UNICODE_STRING DosPath;
 } RTL_DRIVE_LETTER_CURDIR, *PRTL_DRIVE_LETTER_CURDIR;
 
+#ifndef _WINTERNL_
 typedef struct _RTL_USER_PROCESS_PARAMETERS
 {
     ULONG MaximumLength;
@@ -381,6 +356,15 @@ typedef struct _RTL_USER_PROCESS_PARAMETERS
     UNICODE_STRING RuntimeData;
     RTL_DRIVE_LETTER_CURDIR CurrentDirectories[32];
 } RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
+#endif
+
+#ifndef _NTIFS_
+typedef struct _CLIENT_ID {
+    HANDLE UniqueProcess;
+    HANDLE UniqueThread;
+} CLIENT_ID;
+typedef CLIENT_ID *PCLIENT_ID;
+#endif
 
 typedef struct _RTL_USER_PROCESS_INFORMATION
 {
@@ -478,6 +462,18 @@ RtlCreateEnvironment(
 // NT Native API
 //
 
+#ifndef _WDMDDK_
+typedef struct _FILE_NETWORK_OPEN_INFORMATION {
+    LARGE_INTEGER CreationTime;
+    LARGE_INTEGER LastAccessTime;
+    LARGE_INTEGER LastWriteTime;
+    LARGE_INTEGER ChangeTime;
+    LARGE_INTEGER AllocationSize;
+    LARGE_INTEGER EndOfFile;
+    ULONG FileAttributes;
+} FILE_NETWORK_OPEN_INFORMATION, *PFILE_NETWORK_OPEN_INFORMATION;
+#endif
+
 EXTERN_C
 NTSTATUS
 NTAPI
@@ -549,6 +545,266 @@ RtlSystemTimeToLocalTime(
     __in PLARGE_INTEGER SystemTime,
     __out PLARGE_INTEGER LocalTime
    );
+
+
+//////////////////////////////////////////////////////////////////////////////
+
+//
+// ntifs.h
+//
+
+//
+// Define the flags for NtSet(Query)EaFile service structure entries
+//
+
+#define FILE_NEED_EA                    0x00000080
+
+//
+// Define EA type values
+//
+
+#define FILE_EA_TYPE_BINARY             0xfffe
+#define FILE_EA_TYPE_ASCII              0xfffd
+#define FILE_EA_TYPE_BITMAP             0xfffb
+#define FILE_EA_TYPE_METAFILE           0xfffa
+#define FILE_EA_TYPE_ICON               0xfff9
+#define FILE_EA_TYPE_EA                 0xffee
+#define FILE_EA_TYPE_MVMT               0xffdf
+#define FILE_EA_TYPE_MVST               0xffde
+#define FILE_EA_TYPE_ASN1               0xffdd
+#define FILE_EA_TYPE_FAMILY_IDS         0xff01
+
+typedef struct _FILE_NOTIFY_EXTENDED_INFORMATION {
+    ULONG NextEntryOffset;
+    ULONG Action;
+    LARGE_INTEGER CreationTime;
+    LARGE_INTEGER LastModificationTime;
+    LARGE_INTEGER LastChangeTime;
+    LARGE_INTEGER LastAccessTime;
+    LARGE_INTEGER AllocatedLength;
+    LARGE_INTEGER FileSize;
+    ULONG FileAttributes;
+    ULONG ReparsePointTag;
+    LARGE_INTEGER FileId;
+    LARGE_INTEGER ParentFileId;
+    ULONG FileNameLength;
+    WCHAR FileName[1];
+} FILE_NOTIFY_EXTENDED_INFORMATION, *PFILE_NOTIFY_EXTENDED_INFORMATION;
+
+//  We cant define FILE_ID_128 as a union of the UCHAR[16] with two LONGLONGs because that would
+//  impose an alignment requirement that wouldn't otherwise exist.  That would change the in-memory
+//  layout of structures that already embed FILE_ID_128 and/or make their accesses unaligned.
+typedef struct _FILE_ID_128 {                               // winnt
+    UCHAR Identifier[16];                                   // winnt
+} FILE_ID_128, *PFILE_ID_128;                               // winnt
+
+#define FILE_ID_IS_INVALID(FID) ((FID).QuadPart == FILE_INVALID_FILE_ID)
+
+#define FILE_ID_128_IS_INVALID(FID128) (((FID128).Identifier[0] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[1] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[2] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[3] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[4] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[5] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[6] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[7] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[8] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[9] == (UCHAR)-1) &&    \
+                                        ((FID128).Identifier[10] == (UCHAR)-1) &&   \
+                                        ((FID128).Identifier[11] == (UCHAR)-1) &&   \
+                                        ((FID128).Identifier[12] == (UCHAR)-1) &&   \
+                                        ((FID128).Identifier[13] == (UCHAR)-1) &&   \
+                                        ((FID128).Identifier[14] == (UCHAR)-1) &&   \
+                                        ((FID128).Identifier[15] == (UCHAR)-1))
+
+#define MAKE_INVALID_FILE_ID_128(FID128) {  \
+    ((FID128).Identifier[0] = (UCHAR)-1);   \
+    ((FID128).Identifier[1] = (UCHAR)-1);   \
+    ((FID128).Identifier[2] = (UCHAR)-1);   \
+    ((FID128).Identifier[3] = (UCHAR)-1);   \
+    ((FID128).Identifier[4] = (UCHAR)-1);   \
+    ((FID128).Identifier[5] = (UCHAR)-1);   \
+    ((FID128).Identifier[6] = (UCHAR)-1);   \
+    ((FID128).Identifier[7] = (UCHAR)-1);   \
+    ((FID128).Identifier[8] = (UCHAR)-1);   \
+    ((FID128).Identifier[9] = (UCHAR)-1);   \
+    ((FID128).Identifier[10] = (UCHAR)-1);  \
+    ((FID128).Identifier[11] = (UCHAR)-1);  \
+    ((FID128).Identifier[12] = (UCHAR)-1);  \
+    ((FID128).Identifier[13] = (UCHAR)-1);  \
+    ((FID128).Identifier[14] = (UCHAR)-1);  \
+    ((FID128).Identifier[15] = (UCHAR)-1);  \
+}
+
+//
+// Windows 8.1
+//
+
+typedef struct _FILE_ID_EXTD_DIR_INFORMATION {
+    ULONG NextEntryOffset;
+    ULONG FileIndex;
+    LARGE_INTEGER CreationTime;
+    LARGE_INTEGER LastAccessTime;
+    LARGE_INTEGER LastWriteTime;
+    LARGE_INTEGER ChangeTime;
+    LARGE_INTEGER EndOfFile;
+    LARGE_INTEGER AllocationSize;
+    ULONG FileAttributes;
+    ULONG FileNameLength;
+    ULONG EaSize;
+    ULONG ReparsePointTag;
+    FILE_ID_128 FileId;
+    WCHAR FileName[1];
+} FILE_ID_EXTD_DIR_INFORMATION, *PFILE_ID_EXTD_DIR_INFORMATION;
+
+typedef struct _FILE_ID_EXTD_BOTH_DIR_INFORMATION {
+    ULONG NextEntryOffset;
+    ULONG FileIndex;
+    LARGE_INTEGER CreationTime;
+    LARGE_INTEGER LastAccessTime;
+    LARGE_INTEGER LastWriteTime;
+    LARGE_INTEGER ChangeTime;
+    LARGE_INTEGER EndOfFile;
+    LARGE_INTEGER AllocationSize;
+    ULONG FileAttributes;
+    ULONG FileNameLength;
+    ULONG EaSize;
+    ULONG ReparsePointTag;
+    FILE_ID_128 FileId;
+    CCHAR ShortNameLength;
+    WCHAR ShortName[12];
+    WCHAR FileName[1];
+} FILE_ID_EXTD_BOTH_DIR_INFORMATION, *PFILE_ID_EXTD_BOTH_DIR_INFORMATION;
+
+//////////////////////////////////////////////////////////////////////////////
+
+//
+// Object Directory Native API
+//
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtOpenDirectoryObject (
+    __out PHANDLE DirectoryHandle,
+    __in ACCESS_MASK DesiredAccess,
+    __in POBJECT_ATTRIBUTES ObjectAttributes
+    );
+
+typedef struct _OBJECT_DIRECTORY_INFORMATION {
+    UNICODE_STRING Name;
+    UNICODE_STRING TypeName;
+} OBJECT_DIRECTORY_INFORMATION, *POBJECT_DIRECTORY_INFORMATION;
+
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryDirectoryObject (
+    __in HANDLE DirectoryHandle,
+    __out_bcount_opt(Length) PVOID Buffer,
+    __in ULONG Length,
+    __in BOOLEAN ReturnSingleEntry,
+    __in BOOLEAN RestartScan,
+    __inout PULONG Context,
+    __out_opt PULONG ReturnLength
+    );
+
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtOpenSymbolicLinkObject (
+    __out PHANDLE LinkHandle,
+    __in ACCESS_MASK DesiredAccess,
+    __in POBJECT_ATTRIBUTES ObjectAttributes
+    );
+
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQuerySymbolicLinkObject (
+    __in HANDLE LinkHandle,
+    __inout PUNICODE_STRING LinkTarget,
+    __out_opt PULONG ReturnedLength
+    );
+
+//////////////////////////////////////////////////////////////////////////////
+
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryEaFile(
+    __in   HANDLE FileHandle,
+    __out  PIO_STATUS_BLOCK IoStatusBlock,
+    __out  PVOID Buffer,
+    __in   ULONG Length,
+    __in   BOOLEAN ReturnSingleEntry,
+    __in_opt PVOID EaList,
+    __in   ULONG EaListLength,
+    __in_opt PULONG EaIndex,
+    __in   BOOLEAN RestartScan
+    );
+
+//////////////////////////////////////////////////////////////////////////////
+
+//
+// for Symboloc Link
+//
+#define SYMLINK_FLAG_RELATIVE   1
+
+#ifndef _NTIFS_
+
+typedef struct _REPARSE_DATA_BUFFER {
+    ULONG  ReparseTag;
+    USHORT ReparseDataLength;
+    USHORT Reserved;
+    union {
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            ULONG Flags;
+            WCHAR PathBuffer[1];
+        } SymbolicLinkReparseBuffer;
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            WCHAR PathBuffer[1];
+        } MountPointReparseBuffer;
+        struct {
+            UCHAR  DataBuffer[1];
+        } GenericReparseBuffer;
+    } DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
+#endif
+
+//
+// for App Exec Link
+//
+typedef struct _REPARSE_APPEXECLINK_READ_BUFFER { // For tag IO_REPARSE_TAG_APPEXECLINK
+	ULONG  ReparseTag;
+	USHORT ReparseDataLength;
+	USHORT Reserved;
+	ULONG  Version;	        // Currently version 3
+	WCHAR  StringList[1];	// Multistring (Consecutive strings each ending with a NUL)
+  /* There are normally 4 strings here. Ex:
+	Package ID:	    L"Microsoft.WindowsTerminal_8wekyb3d8bbwe"
+	Entry Point:	L"Microsoft.WindowsTerminal_8wekyb3d8bbwe!App"
+	Executable:	    L"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.4.3243.0_x64__8wekyb3d8bbwe\wt.exe"
+	Applic. Type:	l"0" Integer as ASCII. "0" = Desktop bridge application; Else sandboxed UWP application
+  */     
+} APPEXECLINK_READ_BUFFER, *PAPPEXECLINK_READ_BUFFER;
+
+//#define _REPARSE_DATA_BUFFER_LENGTH  (sizeof(REPARSE_DATA_BUFFER) + _NT_PATH_FULL_LENGTH_BYTES)
+
+#include "ntreparsepointtag.h"
 
 //////////////////////////////////////////////////////////////////////////////
 
