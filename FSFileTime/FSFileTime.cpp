@@ -701,7 +701,7 @@ BOOLEAN DeterminePathType(CCommandRunParam *,FILEITEM& fi,COMMAND_RUN_PATH *prun
             }
             else
             {
-                RtlDosPathNameToNtPathName_U(fi.pszFilename,&prunpath->FullPath,&FileNamePart,NULL);
+                RtlDosPathNameToNtPathName_U(fi.pszFilename,&prunpath->FullPath,(PWSTR*)&FileNamePart,NULL);
             }
 
             if( FileNamePart != NULL )
@@ -812,8 +812,10 @@ VOID PrintBinToTime(CCommandRunParam *pcm)
         li = pcm->liValue;
     }
 
-    WinGetDateString(li.QuadPart,szDate,ARRAYSIZE(szDate),pcm->GetDateFormat(),pcm->UTCMode,0);
-    WinGetTimeString(li.QuadPart,szTime,ARRAYSIZE(szTime),pcm->GetTimeFormat(),pcm->UTCMode,0);
+    if( WinGetDateString(li.QuadPart,szDate,ARRAYSIZE(szDate),pcm->GetDateFormat(),pcm->UTCMode,0) == 0 )
+        StringCchCopy(szDate,ARRAYSIZE(szDate),L"<Date Error>");
+    if( WinGetTimeString(li.QuadPart,szTime,ARRAYSIZE(szTime),pcm->GetTimeFormat(),pcm->UTCMode,0) == 0 )
+        StringCchCopy(szDate,ARRAYSIZE(szDate),L"<Time Error>");
     if( pcm->ShowMilliseconds )
     {
         AddMillisecondsString(li,szTime,ARRAYSIZE(szTime));
@@ -1838,6 +1840,7 @@ void Usage()
         "command:\n"
         "   query\n"
         "   set\n"
+        "   copy\n"
         "   timetobin\n"
         "   bintotime\n"
         "   help\n"

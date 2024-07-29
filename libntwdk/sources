@@ -4,6 +4,9 @@ TARGETPATH=obj
 
 _NT_TARGET_VERSION=$(_NT_TARGET_VERSION_VISTA)
 
+BUILD_PRODUCES=libntwdk_lib
+BUILD_CONSUMES=libcwh_lib
+
 NTTARGETFILES=PostBuildSteps
 
 
@@ -11,7 +14,12 @@ NTTARGETFILES=PostBuildSteps
 # compile
 #
 
+!if $(FREEBUILD)
 USE_MSVCRT=1
+!else
+USE_LIBCMT=1
+DEBUG_CRTS=1
+!endif
 
 USE_NATIVE_EH=1
 

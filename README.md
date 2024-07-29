@@ -31,10 +31,10 @@ Windows 7以降で動作を確認しています。
     -m ミリ秒まで表示します。
     -s filenameがディレクトリの場合、すべてのサブディレクトリのファイルを表示します。
     -fd:<format-date> 表示する日付のフォーマットを指定します。 デフォルトはシステム設定です。
-                      詳細はWin32 APIのGetDateFormat/GetDateFormatExの書式してください。
+                      詳細はWin32 APIのGetDateFormat/GetDateFormatExの書式を参照してください。
 
     -ft:<format-time> 表示する時刻のフォーマットを指定します。デフォルトは"HH:mm:ss"です。
-                      詳細はWin32 APIのGetTimeFormat/GetTimeFormatExの書式してください。
+                      詳細はWin32 APIのGetTimeFormat/GetTimeFormatExの書式を参照してください。
 
 日付の書式は[こちら](https://docs.microsoft.com/en-us/windows/win32/intl/day--month--year--and-era-format-pictures)を、時刻の書式は[こちら](https://docs.microsoft.com/en-us/windows/win32/intl/hour--minute--and-second-format-pictures)を参照してください。
 
@@ -96,7 +96,7 @@ Windows 7以降で動作を確認しています。
        または
     -bz:<bin> すべての種類の絶対システム時間を設定
 
-    <bin>  数字のみの場合10進数、'0x'プリフィックスが付いた場合16進数として扱います。
+    <bin>  数字のみの場合10進数、'0x'プレフィックスが付いた場合16進数として扱います。
            例) -bz:0x01D4DF2D96F8D800
 
 `options` 表示オプションです。主なオプションは以下の通りです。
@@ -156,7 +156,7 @@ source がディレクトリの内容を処理するに指定された場合、d
 destinationにsourceのディレクトリを始点とした相対パスを連結し、パスの同じ位置に同名のファイル、ディレクトリが存在する場合にコピーが実行されます。
 
 -sオプションと-fオプションを指定してワイルドカードを指定する場合注意してください。
-ディレクトリにもワイルドカード適用されるため予期しない結果となる場合があります。
+ディレクトリにもワイルドカードが適用されるため予期しない結果となる場合があります。
 
     fsfiletime copy foo.txt bar.txt
 

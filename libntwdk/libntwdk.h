@@ -138,11 +138,3 @@ WinEnumFiles(
     FSHELPENUMCALLBACKPROC Callback,
     PVOID Context
     );
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-};
-#endif
