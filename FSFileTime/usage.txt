@@ -168,9 +168,10 @@ command parameters:
     If specified '@now', displays current absolute system time.
 
     options:
+    -win, -nt   displays absolute system time.
+    -dos        displays as MS-DOS time the absolute seconds since 1980. 
+    -unix       displays as UNIX time the absolute seconds since 1970. 
     -u, -utc    specifies date/time is treat as UTC.
-    -fd:<dateformat> specifies format for date display.
-    -ft:<timeformat> specifies format for time display.
 
     -----
 
@@ -183,6 +184,8 @@ command parameters:
     -unix       treat specified value as the absolute seconds since 1970. 
     -u, -utc    displays date/time as UTC. does not convert to localtime.
     -m          displays milliseconds
+    -fd:<dateformat> specifies format for date display.
+    -ft:<timeformat> specifies format for time display.
 
     -----
 

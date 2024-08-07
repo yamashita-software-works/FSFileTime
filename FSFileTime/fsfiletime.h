@@ -88,7 +88,7 @@ typedef struct _COMMAND_RUN_PARAM
 
     struct {
         // TIMETOBIN command parameter
-        int TimeToBinMode; // 0:nt/windows, 1:dos, 2:unix
+        int TimeToBinMode; // 0x1:nt/windows, 0x2:dos, 0x4:unix
         TIME_FIELDS tf;
     };
 

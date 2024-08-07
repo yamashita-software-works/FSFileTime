@@ -212,7 +212,13 @@ c:\directory下のサブディレクトリを含むすべての*.txtから、全
 
 `options` 表示オプションです。
 
-    -u, -utc    指定された日時をUTCとして扱います。
+    -win,-nt  指定された日時をシステム絶対時間で表示します。 
+    -dos      指定された日時を1980年からの絶対秒数で表示します。
+    -unix     指定された日時を1970年からの絶対秒数で表示します。
+
+              上記のオプションを指定しない場合すべて表示されます。
+
+    -u, -utc  指定された日時をUTCとして扱います。
 
 ### BinToTime コマンド
 
@@ -252,7 +258,7 @@ Windows Driver Kits>WDK 7600.16385.1>Build Environments>Windows 7
 
 64ビット版をビルドする場合は、`x64 Free Build Environment`
 
-32ビット版をビルドする場合は、 `x86 Free Build Environment`
+32ビット版をビルドする場合は、`x86 Free Build Environment`
 
 を開き、clone先またはソースの展開先ディレクトリへ移動して`build`コマンドを実行します。
 

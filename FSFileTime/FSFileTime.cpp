@@ -462,7 +462,7 @@ VOID ActionFileDateTime( CCommandRunParam *pcm, UNICODE_STRING *FileNameWithFull
 BOOLEAN CALLBACK EnumFileCallback(HANDLE hDirectory,PCWSTR DirectoryName,
                                   PVOID pInfoBuffer,ULONG_PTR Context)
 {
-	FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = (FILE_ID_BOTH_DIR_INFORMATION *)pInfoBuffer;
+    FILE_ID_BOTH_DIR_INFORMATION *pFileInfo = (FILE_ID_BOTH_DIR_INFORMATION *)pInfoBuffer;
 
     if( IS_RELATIVE_DIR_NAME_WITH_UNICODE_SIZE(pFileInfo->FileName,pFileInfo->FileNameLength) )
         return TRUE;
@@ -770,22 +770,31 @@ VOID PrintTimeToBin(CCommandRunParam *pcm)
     if( !pcm->UTCMode )
         RtlLocalTimeToSystemTime(&li,&li);
 
-    printf("Absolute System Time : ");
-    printf("0x%016I64X\n",li.QuadPart);
+    if( pcm->TimeToBinMode & 0x1 )
+    {
+        printf("Absolute System Time : ");
+        printf("0x%016I64X\n",li.QuadPart);
+    }
 
     ULONG ElapsedSeconds;
 
-    printf("Elapsed Seconds Since 1980 : ");
-    if( RtlTimeToSecondsSince1980(&li,&ElapsedSeconds) )
-        printf("0x%08X\n",ElapsedSeconds);
-    else
-        printf("Invalid range\n");
+    if( pcm->TimeToBinMode & 0x2 )
+    {
+        printf("Elapsed Seconds Since 1980 : ");
+        if( RtlTimeToSecondsSince1980(&li,&ElapsedSeconds) )
+            printf("0x%08X\n",ElapsedSeconds);
+        else
+            printf("Invalid range\n");
+    }
 
-    printf("Elapsed Seconds Since 1970 : ");
-    if( RtlTimeToSecondsSince1970(&li,&ElapsedSeconds) )
-        printf("0x%08X\n",ElapsedSeconds);
-    else
-        printf("Invalid range\n");
+    if( pcm->TimeToBinMode & 0x4 )
+    {
+        printf("Elapsed Seconds Since 1970 : ");
+        if( RtlTimeToSecondsSince1970(&li,&ElapsedSeconds) )
+            printf("0x%08X\n",ElapsedSeconds);
+        else
+            printf("Invalid range\n");
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -1452,15 +1461,15 @@ BOOLEAN ParseCopyActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
 //----------------------------------------------------------------------------
 /*++
 
-    fsfiletime timetobin <date> [<time>] [/u] [-fd:<date format>] [-ft:<time format>]
+    fsfiletime timetobin <date> [<time>] [options]
 
-    -u   displays time as UTC.
+    -win,-nt    displays as UNIX time the absolute windows (nt) systemtime. 
 
-    -fd:<date format>
-         specifies format for date display. default: system setting.
+    -dos        displays as MS-DOS time the absolute seconds since 1980. 
 
-    -ft:<time format>
-         specifies format for time display. default: system setting.
+    -unix       displays as the absolute seconds since 1970. 
+
+    -u          displays time as UTC.
 
 --*/
 BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
@@ -1479,7 +1488,7 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
 
     // option
     BOOLEAN bResult = FALSE;
-    int option = -1;
+    int option = 0;
     int r,year,month,day,hour,minute,second,msecond;
 
     pcm->tf.Year = pcm->tf.Month = pcm->tf.Day = -1;
@@ -1495,15 +1504,50 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
             {
                 switch( argv[i][1] )
                 {
+                    case L'n':
+                    case L'N':
+                        if( _wcsicmp(&argv[i][1],L"nt") == 0  )
+                        {
+                            option |= 0x1; // output nt windows time
+                        }
+                        else
+                        {
+                            __leave; // invalid format
+                        }
+                        break;
+                    case L'w':
+                    case L'W':
+                        if( _wcsicmp(&argv[i][1],L"win") == 0  )
+                        {
+                            option |= 0x1; // output nt windows time
+                        }
+                        else
+                        {
+                            __leave; // invalid format
+                        }
+                        break;
+
+                    case L'd':
+                    case L'D':
+                        if( _wcsicmp(&argv[i][1],L"dos") == 0  )
+                        {
+                            option |= 0x2; // output ms-dos time
+                        }
+                        else
+                        {
+                            __leave; // invalid format
+                        }
+                        break;
+
                     case L'u':
                     case L'U':
-                        if( argv[i][2] == L'\0' )
+                        if( argv[i][2] == L'\0' || (_wcsicmp(&argv[i][1],L"utc") == 0 && option == -1) )
                         {
-                            pcm->UTCMode = TRUE;
+                            pcm->UTCMode = TRUE; // output time as UTC
                         }
-                        else if( _wcsicmp(&argv[i][1],L"utc") == 0 )
+                        else if( _wcsicmp(&argv[i][1],L"unix") == 0 )
                         {
-                            pcm->UTCMode = TRUE;
+                            option |= 0x4; // output unix time
                         }
                         else
                         {
@@ -1511,7 +1555,8 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
                         }
                         break;
                     default:
-                        __leave; // invalid switch
+                        __leave; // invalid format
+                        break;
                 }
             }
             else
@@ -1600,8 +1645,8 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
         if( pcm->tf.Year == -1 )
             __leave;
 
-        if( option == -1 )
-            option = 0; // default is windows mode
+        if( option == 0 )
+            option = 0x1|0x2|0x4; // default is display all
 
         pcm->TimeToBinMode = option;
 
@@ -1622,11 +1667,25 @@ BOOLEAN ParseTimeToBinActionParameter(int argc, WCHAR *argv[],CCommandRunParam *
 //----------------------------------------------------------------------------
 /*++
 
-    fsfiletime bintotime <systemtime> [/dos|/unix]
+    fsfiletime bintotime <systemtime> [options]
 
     <systemtime> specifies system time of UTC. 
                  (same as format of saved to file system)
                  with the prefix "0x" is a hexadecimal number, otherwise a decimal number.
+
+    -dos        treat specified value as the absolute seconds since 1980. 
+
+    -unix       treat specified value as the absolute seconds since 1970. 
+
+    -u, -utc    displays date/time as UTC. does not convert to localtime.
+
+    -m          displays milliseconds
+
+    -fd:<date format>
+         specifies format for date display. default: system setting.
+
+    -ft:<time format>
+         specifies format for time display. default: system setting.
 
 --*/
 BOOLEAN ParseBinToTimeActionParameter(int argc, WCHAR *argv[],CCommandRunParam *pcm)
