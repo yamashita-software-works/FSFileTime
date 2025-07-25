@@ -1,0 +1,10 @@
+#define BUILD_NUMBER 0
+#define MEJOR_VERSION  1
+#define MINOR_VERSION  1
+#define PATCH_NUMBER 1
+#define VERSION_STRING "1.1.1.0\0"
+#define VERSION_STR_DWORD 1,1,1,0
+#define PRODUCT_VER_STRING "1.1\0"
+#define PRODUCT_VER_DWORD  1,1,0,0
+#define COMMON_PRODUCTNAME "FSConsoleTools\0"
+#define COMMON_LEGALCOPYRIGHT "Copyright (C) 2021-2023 YAMASHITA Katsuhiro"

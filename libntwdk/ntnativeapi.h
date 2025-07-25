@@ -1,9 +1,11 @@
-#pragma once
 //
 // ntnativeapi.h
 //
 // NT native API definitions.
 //
+#ifndef _NTNATIVEAPI_
+#define _NTNATIVEAPI_
+
 EXTERN_C
 VOID
 NTAPI
@@ -17,6 +19,26 @@ NTAPI
 RtlGetLastWin32Error(
     VOID
     );
+
+#ifndef _NTIFS_
+
+EXTERN_C
+NTSTATUS
+NTAPI 
+RtlInitUnicodeStringEx (
+    UNICODE_STRING *DestinationString, 
+    PCWSTR SourceString
+    );
+
+EXTERN_C
+NTSTATUS 
+NTAPI
+RtlAppendUnicodeToString(
+    IN OUT PUNICODE_STRING  Destination,
+    IN PCWSTR  Source
+    );
+
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -63,16 +85,6 @@ NTAPI
 RtlGetCurrentDirectory_U(
     IN ULONG nBufferLength,
     OUT PWSTR lpBuffer
-    );
-
-EXTERN_C
-BOOLEAN
-NTAPI
-RtlDosPathNameToNtPathName_U(
-    IN PCWSTR DosPathName,
-    OUT PUNICODE_STRING NtPathName,
-    OUT PCWSTR *NtFileNamePart,
-    OUT CURDIR *DirectoryInfo
     );
 
 EXTERN_C
@@ -164,6 +176,16 @@ RtlQueryEnvironmentVariable_U(
      __out PUNICODE_STRING Value
      );
 
+EXTERN_C
+BOOLEAN
+NTAPI
+RtlDosPathNameToNtPathName_U(
+    IN PCWSTR DosPathName,
+    OUT PUNICODE_STRING NtPathName,
+    OUT PWSTR *NtFileNamePart,
+    OUT PRTL_RELATIVE_NAME_U DirectoryInfo
+    );
+
 struct _RTL_BUFFER;
 
 #if !defined(RTL_BUFFER)
@@ -248,6 +270,12 @@ RtlNtPathNameToDosPathName(
         }                                                \
     } while (0)
 
+EXTERN_C
+BOOLEAN
+NTAPI
+RtlSetCurrentTransaction(
+	HANDLE hTransaction
+	);
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -485,6 +513,21 @@ NtQueryFullAttributesFile(
 EXTERN_C
 NTSTATUS
 NTAPI
+NtNotifyChangeDirectoryFile(
+    IN HANDLE  FileHandle,
+    IN HANDLE  Event OPTIONAL,
+    IN PIO_APC_ROUTINE  ApcRoutine OPTIONAL,
+    IN PVOID  ApcContext OPTIONAL,
+    OUT PIO_STATUS_BLOCK  IoStatusBlock,
+    OUT PVOID  Buffer,
+    IN ULONG  BufferLength,
+    IN ULONG  NotifyFilter,
+    IN BOOLEAN  WatchSubTree
+    );
+
+EXTERN_C
+NTSTATUS
+NTAPI
 NtWaitForSingleObject(
     IN HANDLE  Handle,
     IN BOOLEAN  Alertable,
@@ -526,6 +569,19 @@ NTSTATUS
 NTAPI
 NtQuerySystemTime(
     __in PLARGE_INTEGER SystemTime
+    );
+
+EXTERN_C
+NTSTATUS
+NTAPI
+NtDuplicateObject(
+    __in HANDLE hSourceProcessHandle,
+    __in HANDLE hSourceHandle,
+    __in_opt HANDLE hTargetProcessHandle,
+    __out_opt PHANDLE pTargetHandle,
+    __in ACCESS_MASK DesiredAccess,
+    __in ULONG  Attributes,
+    __in ULONG  Options
     );
 
 //////////////////////////////////////////////////////////////////////////////
@@ -574,71 +630,53 @@ RtlSystemTimeToLocalTime(
 #define FILE_EA_TYPE_ASN1               0xffdd
 #define FILE_EA_TYPE_FAMILY_IDS         0xff01
 
-typedef struct _FILE_NOTIFY_EXTENDED_INFORMATION {
-    ULONG NextEntryOffset;
-    ULONG Action;
-    LARGE_INTEGER CreationTime;
-    LARGE_INTEGER LastModificationTime;
-    LARGE_INTEGER LastChangeTime;
-    LARGE_INTEGER LastAccessTime;
-    LARGE_INTEGER AllocatedLength;
-    LARGE_INTEGER FileSize;
-    ULONG FileAttributes;
-    ULONG ReparsePointTag;
-    LARGE_INTEGER FileId;
-    LARGE_INTEGER ParentFileId;
-    ULONG FileNameLength;
-    WCHAR FileName[1];
-} FILE_NOTIFY_EXTENDED_INFORMATION, *PFILE_NOTIFY_EXTENDED_INFORMATION;
+#if (NTDDI_VERSION <= NTDDI_WIN7)
 
-//  We cant define FILE_ID_128 as a union of the UCHAR[16] with two LONGLONGs because that would
-//  impose an alignment requirement that wouldn't otherwise exist.  That would change the in-memory
-//  layout of structures that already embed FILE_ID_128 and/or make their accesses unaligned.
-typedef struct _FILE_ID_128 {                               // winnt
-    UCHAR Identifier[16];                                   // winnt
-} FILE_ID_128, *PFILE_ID_128;                               // winnt
+typedef enum _FILE_INFORMATION_CLASS_EX {
 
-#define FILE_ID_IS_INVALID(FID) ((FID).QuadPart == FILE_INVALID_FILE_ID)
+        //
+        //  These are special versions of these operations (defined earlier)
+        //  which can be used by kernel mode drivers only to bypass security
+        //  access checks for Rename and HardLink operations.  These operations
+        //  are only recognized by the IOManager, a file system should never
+        //  receive these.
+        //
 
-#define FILE_ID_128_IS_INVALID(FID128) (((FID128).Identifier[0] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[1] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[2] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[3] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[4] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[5] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[6] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[7] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[8] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[9] == (UCHAR)-1) &&    \
-                                        ((FID128).Identifier[10] == (UCHAR)-1) &&   \
-                                        ((FID128).Identifier[11] == (UCHAR)-1) &&   \
-                                        ((FID128).Identifier[12] == (UCHAR)-1) &&   \
-                                        ((FID128).Identifier[13] == (UCHAR)-1) &&   \
-                                        ((FID128).Identifier[14] == (UCHAR)-1) &&   \
-                                        ((FID128).Identifier[15] == (UCHAR)-1))
+    FileRenameInformationBypassAccessCheck = 56,  // 56
+    FileLinkInformationBypassAccessCheck,    // 57
 
-#define MAKE_INVALID_FILE_ID_128(FID128) {  \
-    ((FID128).Identifier[0] = (UCHAR)-1);   \
-    ((FID128).Identifier[1] = (UCHAR)-1);   \
-    ((FID128).Identifier[2] = (UCHAR)-1);   \
-    ((FID128).Identifier[3] = (UCHAR)-1);   \
-    ((FID128).Identifier[4] = (UCHAR)-1);   \
-    ((FID128).Identifier[5] = (UCHAR)-1);   \
-    ((FID128).Identifier[6] = (UCHAR)-1);   \
-    ((FID128).Identifier[7] = (UCHAR)-1);   \
-    ((FID128).Identifier[8] = (UCHAR)-1);   \
-    ((FID128).Identifier[9] = (UCHAR)-1);   \
-    ((FID128).Identifier[10] = (UCHAR)-1);  \
-    ((FID128).Identifier[11] = (UCHAR)-1);  \
-    ((FID128).Identifier[12] = (UCHAR)-1);  \
-    ((FID128).Identifier[13] = (UCHAR)-1);  \
-    ((FID128).Identifier[14] = (UCHAR)-1);  \
-    ((FID128).Identifier[15] = (UCHAR)-1);  \
-}
+        //
+        // End of special information classes reserved for IOManager.
+        //
+
+    FileVolumeNameInformation,               // 58
+    FileIdInformation,                       // 59
+    FileIdExtdDirectoryInformation,          // 60
+    FileReplaceCompletionInformation,        // 61
+    FileHardLinkFullIdInformation,           // 62
+    FileIdExtdBothDirectoryInformation,      // 63
+    FileDispositionInformationEx,            // 64
+    FileRenameInformationEx,                 // 65
+    FileRenameInformationExBypassAccessCheck, // 66
+    FileDesiredStorageClassInformation,      // 67
+    FileStatInformation,                     // 68 Windows 10, version 1709.
+    FileMemoryPartitionInformation,          // 69
+    FileStatLxInformation,                   // 70
+    FileCaseSensitiveInformation,            // 71
+    FileLinkInformationEx,                   // 72 Windows 10, version 1809.
+    FileLinkInformationExBypassAccessCheck,  // 73 Windows 10, version 1809.
+    FileStorageReserveIdInformation,         // 74
+    FileCaseSensitiveInformationForceAccessCheck, // 75
+    FileKnownFolderInformation,              // 76
+} FILE_INFORMATION_CLASS_EX, *PFILE_INFORMATION_CLASS_EX;
+
+#endif
 
 //
 // Windows 8.1
 //
+
+#include "ntfileid.h"
 
 typedef struct _FILE_ID_EXTD_DIR_INFORMATION {
     ULONG NextEntryOffset;
@@ -676,11 +714,140 @@ typedef struct _FILE_ID_EXTD_BOTH_DIR_INFORMATION {
     WCHAR FileName[1];
 } FILE_ID_EXTD_BOTH_DIR_INFORMATION, *PFILE_ID_EXTD_BOTH_DIR_INFORMATION;
 
+//
+// Windows 10
+//
+#include "ntnotifychangedirectory.h"
+
+//////////////////////////////////////////////////////////////////////////////
+
+#ifdef _NTIFS_
+
+EXTERN_C
+NTSYSCALLAPI
+NTSTATUS
+NTAPI
+NtQueryEaFile(
+    __in   HANDLE FileHandle,
+    __out  PIO_STATUS_BLOCK IoStatusBlock,
+    __out  PVOID Buffer,
+    __in   ULONG Length,
+    __in   BOOLEAN ReturnSingleEntry,
+    __in_opt PVOID EaList,
+    __in   ULONG EaListLength,
+    __in_opt PULONG EaIndex,
+    __in   BOOLEAN RestartScan
+    );
+
+EXTERN_C
+NTSTATUS
+NTAPI
+NtQueryAttributesFile(
+    __in  POBJECT_ATTRIBUTES ObjectAttributes,
+    __out PFILE_BASIC_INFORMATION FileInformation
+    );
+
+#endif
+
+//
+// for Symboloc Link
+//
+#define SYMLINK_FLAG_RELATIVE   1
+
+#ifndef _NTIFS_
+
+typedef struct _REPARSE_DATA_BUFFER {
+    ULONG  ReparseTag;
+    USHORT ReparseDataLength;
+    USHORT Reserved;
+    union {
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            ULONG Flags;
+            WCHAR PathBuffer[1];
+        } SymbolicLinkReparseBuffer;
+        struct {
+            USHORT SubstituteNameOffset;
+            USHORT SubstituteNameLength;
+            USHORT PrintNameOffset;
+            USHORT PrintNameLength;
+            WCHAR PathBuffer[1];
+        } MountPointReparseBuffer;
+        struct {
+            UCHAR  DataBuffer[1];
+        } GenericReparseBuffer;
+    } DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
+#endif
+
+//
+// for App Exec Link
+//
+typedef struct _REPARSE_APPEXECLINK_READ_BUFFER { // For tag IO_REPARSE_TAG_APPEXECLINK
+    ULONG  ReparseTag;
+    USHORT ReparseDataLength;
+    USHORT Reserved;
+    ULONG  Version;	        // Currently version 3
+    WCHAR  StringList[1];	// Multistring (Consecutive strings each ending with a NUL)
+  /* There are normally 4 strings here. Ex:
+    Package ID:	    L"Microsoft.WindowsTerminal_8wekyb3d8bbwe"
+    Entry Point:	L"Microsoft.WindowsTerminal_8wekyb3d8bbwe!App"
+    Executable:	    L"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.4.3243.0_x64__8wekyb3d8bbwe\wt.exe"
+    Applic. Type:	l"0" Integer as ASCII. "0" = Desktop bridge application; Else sandboxed UWP application
+  */     
+} APPEXECLINK_READ_BUFFER, *PAPPEXECLINK_READ_BUFFER;
+
+#include "ntreparsepointtag.h"
+
+//////////////////////////////////////////////////////////////////////////////
+
+//
+// System Information Native API
+//
+
+typedef struct _SYSTEM_TIME_OF_DAY_INFORMATION
+{
+	LARGE_INTEGER BootTime;
+	LARGE_INTEGER CurrentTime;
+	LARGE_INTEGER TimeZoneBias;
+	ULONG CurrentTimeZoneId;	
+} SYSTEM_TIME_OF_DAY_INFORMATION;
+
+#ifndef _WINTERNL_
+typedef enum {
+	SystemTimeOfDayInformation = 3,
+} SYSTEM_INFORMATION_CLASS;
+
+EXTERN_C
+NTSTATUS
+NTAPI
+NtQuerySystemInformation (
+    __in SYSTEM_INFORMATION_CLASS SystemInformationClass,
+    __out_bcount_opt(SystemInformationLength) PVOID SystemInformation,
+    __in ULONG SystemInformationLength,
+    __out_opt PULONG ReturnLength
+    );
+
+EXTERN_C
+NTSTATUS
+NTAPI
+NtSetSystemInformation (
+    __in SYSTEM_INFORMATION_CLASS SystemInformationClass,
+    __in_bcount_opt(SystemInformationLength) PVOID SystemInformation,
+    __in ULONG SystemInformationLength
+    );
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 
 //
 // Object Directory Native API
 //
+
 EXTERN_C
 NTSYSCALLAPI
 NTSTATUS
@@ -732,79 +899,85 @@ NtQuerySymbolicLinkObject (
 
 //////////////////////////////////////////////////////////////////////////////
 
-EXTERN_C
-NTSYSCALLAPI
-NTSTATUS
-NTAPI
-NtQueryEaFile(
-    __in   HANDLE FileHandle,
-    __out  PIO_STATUS_BLOCK IoStatusBlock,
-    __out  PVOID Buffer,
-    __in   ULONG Length,
-    __in   BOOLEAN ReturnSingleEntry,
-    __in_opt PVOID EaList,
-    __in   ULONG EaListLength,
-    __in_opt PULONG EaIndex,
-    __in   BOOLEAN RestartScan
-    );
+//
+// Volume Information Native API
+//
 
-//////////////////////////////////////////////////////////////////////////////
+typedef struct _FILE_FS_SECTOR_SIZE_INFORMATION
+{
+    ULONG LogicalBytesPerSector;
+    ULONG PhysicalBytesPerSectorForAtomicity;
+    ULONG PhysicalBytesPerSectorForPerformance;
+    ULONG FileSystemEffectivePhysicalBytesPerSectorForAtomicity;
+    ULONG Flags;
+    ULONG ByteOffsetForSectorAlignment;
+    ULONG ByteOffsetForPartitionAlignment;
+} FILE_FS_SECTOR_SIZE_INFORMATION, *PFILE_FS_SECTOR_SIZE_INFORMATION;
+
+typedef struct _FILE_FS_DATA_COPY_INFORMATION
+{
+    ULONG NumberOfCopies;
+} FILE_FS_DATA_COPY_INFORMATION,*PFILE_FS_DATA_COPY_INFORMATION;
+
+typedef struct _FILE_FS_METADATA_SIZE_INFORMATION
+{
+    LARGE_INTEGER TotalMetadataAllocationUnits;
+    ULONG SectorsPerAllocationUnit;
+    ULONG BytesPerSector;
+} FILE_FS_METADATA_SIZE_INFORMATION,*PFILE_FS_METADATA_SIZE_INFORMATION;
+
+typedef struct _FILE_FS_FULL_SIZE_INFORMATION_EX {
+    ULONGLONG ActualTotalAllocationUnits;
+    ULONGLONG ActualAvailableAllocationUnits;
+    ULONGLONG ActualPoolUnavailableAllocationUnits;
+    ULONGLONG CallerTotalAllocationUnits;
+    ULONGLONG CallerAvailableAllocationUnits;
+    ULONGLONG CallerPoolUnavailableAllocationUnits;
+    ULONGLONG UsedAllocationUnits;
+    ULONGLONG TotalReservedAllocationUnits;
+    ULONGLONG VolumeStorageReserveAllocationUnits;
+    ULONGLONG AvailableCommittedAllocationUnits;
+    ULONGLONG PoolAvailableAllocationUnits;
+    ULONG     SectorsPerAllocationUnit;
+    ULONG     BytesPerSector;
+} FILE_FS_FULL_SIZE_INFORMATION_EX, *PFILE_FS_FULL_SIZE_INFORMATION_EX;
 
 //
-// for Symboloc Link
+//  Flag definitions for FILE_FS_SECTOR_SIZE_INFORMATION structure
 //
-#define SYMLINK_FLAG_RELATIVE   1
-
-#ifndef _NTIFS_
-
-typedef struct _REPARSE_DATA_BUFFER {
-    ULONG  ReparseTag;
-    USHORT ReparseDataLength;
-    USHORT Reserved;
-    union {
-        struct {
-            USHORT SubstituteNameOffset;
-            USHORT SubstituteNameLength;
-            USHORT PrintNameOffset;
-            USHORT PrintNameLength;
-            ULONG Flags;
-            WCHAR PathBuffer[1];
-        } SymbolicLinkReparseBuffer;
-        struct {
-            USHORT SubstituteNameOffset;
-            USHORT SubstituteNameLength;
-            USHORT PrintNameOffset;
-            USHORT PrintNameLength;
-            WCHAR PathBuffer[1];
-        } MountPointReparseBuffer;
-        struct {
-            UCHAR  DataBuffer[1];
-        } GenericReparseBuffer;
-    } DUMMYUNIONNAME;
-} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
-
-#endif
+#define SSINFO_FLAGS_ALIGNED_DEVICE                 0x00000001
+#define SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE    0x00000002
+#define SSINFO_FLAGS_NO_SEEK_PENALTY                0x00000004
+#define SSINFO_FLAGS_TRIM_ENABLED                   0x00000008
+#define SSINFO_FLAGS_BYTE_ADDRESSABLE               0x00000010
+#define SSINFO_OFFSET_UNKNOWN (0xffffffff)
 
 //
-// for App Exec Link
+// FS_INFORMATION_CLASS Class
 //
-typedef struct _REPARSE_APPEXECLINK_READ_BUFFER { // For tag IO_REPARSE_TAG_APPEXECLINK
-	ULONG  ReparseTag;
-	USHORT ReparseDataLength;
-	USHORT Reserved;
-	ULONG  Version;	        // Currently version 3
-	WCHAR  StringList[1];	// Multistring (Consecutive strings each ending with a NUL)
-  /* There are normally 4 strings here. Ex:
-	Package ID:	    L"Microsoft.WindowsTerminal_8wekyb3d8bbwe"
-	Entry Point:	L"Microsoft.WindowsTerminal_8wekyb3d8bbwe!App"
-	Executable:	    L"C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.4.3243.0_x64__8wekyb3d8bbwe\wt.exe"
-	Applic. Type:	l"0" Integer as ASCII. "0" = Desktop bridge application; Else sandboxed UWP application
-  */     
-} APPEXECLINK_READ_BUFFER, *PAPPEXECLINK_READ_BUFFER;
-
-//#define _REPARSE_DATA_BUFFER_LENGTH  (sizeof(REPARSE_DATA_BUFFER) + _NT_PATH_FULL_LENGTH_BYTES)
-
-#include "ntreparsepointtag.h"
+/*++
+typedef enum _FSINFOCLASS {
+    FileFsVolumeInformation          = 1,
+    FileFsLabelInformation,         // 2
+    FileFsSizeInformation,          // 3
+    FileFsDeviceInformation,        // 4
+    FileFsAttributeInformation,     // 5
+    FileFsControlInformation,       // 6
+    FileFsFullSizeInformation,      // 7
+    FileFsObjectIdInformation,      // 8
+    FileFsDriverPathInformation,    // 9
+    FileFsVolumeFlagsInformation,   // 10 <-- Win7 WDK defined
+    FileFsSectorSizeInformation,    // 11
+    FileFsDataCopyInformation,      // 12
+    FileFsMetadataSizeInformation,  // 13
+    FileFsFullSizeInformationEx,    // 14
+    FileFsMaximumInformation
+} FS_INFORMATION_CLASS, *PFS_INFORMATION_CLASS;
+--*/
+#define FileFsSectorSizeInformation   ((FS_INFORMATION_CLASS)11)
+#define FileFsDataCopyInformation     ((FS_INFORMATION_CLASS)12)
+#define FileFsMetadataSizeInformation ((FS_INFORMATION_CLASS)13)
+#define FileFsFullSizeInformationEx   ((FS_INFORMATION_CLASS)14)
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -820,3 +993,4 @@ typedef struct _REPARSE_APPEXECLINK_READ_BUFFER { // For tag IO_REPARSE_TAG_APPE
 #define TRUNCATE_EXISTING   5
 #endif
 
+#endif

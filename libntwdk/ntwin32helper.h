@@ -1,7 +1,17 @@
 #pragma once
-
+//
+//  ntwin32helper.h
+//
+//  PURPOSE: 
+//    using in ntddk build for Win32 API.Use when you want to
+//    call Win32 API from NTDDK user mode source code.
+//
 #ifndef WINAPI
 #define WINAPI      __stdcall
+#endif
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
 #define TIME_NOMINUTESORSECONDS   0x00000001  // do not use minutes or seconds
@@ -41,3 +51,11 @@ int WinGetErrorMessage(ULONG ErrorCode,PWSTR *ppMessage);
 int WinGetSystemErrorMessage(ULONG ErrorCode,PWSTR *ppMessage);
 void WinFreeErrorMessage(PWSTR pMessage);
 
+PVOID WinLocalAlloc(ULONG Flags, SIZE_T uBytes);
+PVOID WinLocalReAlloc(PVOID pMem,SIZE_T uBytes,ULONG uFlags);
+PVOID WinLocalFree(PVOID pMem);
+SIZE_T WinLocalSize(PVOID pMem);
+
+#ifdef __cplusplus
+};
+#endif

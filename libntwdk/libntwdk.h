@@ -17,6 +17,7 @@ typedef struct _UNICODE_STRING {
 
 #include "ntpathcomponent.h"
 #include "ntnativehelp.h"
+#include "ntvolumehelp.h"
 
 //
 // WDK definitions for Win32 build compatible
@@ -115,34 +116,127 @@ typedef struct _FS_FILE_ID_GLOBAL_TX_DIR_INFORMATION {
 #define FILE_ATTRIBUTE_STRICTLY_SEQUENTIAL   0x20000000  
 #endif
 
-typedef struct _FSDIRENUMCALLBACKINFO
-{
-    HANDLE DirectoryHandle;
-    PCWSTR Path;
-} FSDIRENUMCALLBACKINFO,*PFSDIRENUMCALLBACKINFO;
-
-typedef HRESULT (CALLBACK *FSHELPENUMCALLBACKPROC)(
-    ULONG InformationType,
-    PVOID Information,
-    PFSDIRENUMCALLBACKINFO DirEnumCallbackInfo,
-    PVOID Context
+EXTERN_C
+ULONG
+__cdecl
+DbgPrint (
+    __in_z __drv_formatString(printf) PCSTR Format,
+    ...
     );
+
+#ifndef _DBGPRINT
+#ifdef _DEBUG
+#define _DBGPRINT DbgPrint
+#else
+#define _DBGPRINT __noop
+#endif
+#endif
+
+//  OBJECT_INFORMATION_CLASS compatible
+#define ObjectNameInformation      ((OBJECT_INFORMATION_CLASS)1)
+#define ObjectAllTypesInformation  ((OBJECT_INFORMATION_CLASS)3)
+#define ObjectHandleInformation    ((OBJECT_INFORMATION_CLASS)4)
+
+typedef struct _NT_FILE_BASIC_INFORMATION {
+    LARGE_INTEGER CreationTime;
+    LARGE_INTEGER LastAccessTime;
+    LARGE_INTEGER LastWriteTime;
+    LARGE_INTEGER ChangeTime;
+    ULONG FileAttributes;
+} NT_FILE_BASIC_INFORMATION, *PNT_FILE_BASIC_INFORMATION;
+
+typedef struct _NT_FILE_STANDARD_INFORMATION {
+    LARGE_INTEGER AllocationSize;
+    LARGE_INTEGER EndOfFile;
+    ULONG NumberOfLinks;
+    BOOLEAN DeletePending;
+    BOOLEAN Directory;
+} NT_FILE_STANDARD_INFORMATION, *PNT_FILE_STANDARD_INFORMATION;
 
 EXTERN_C
-HRESULT
-__stdcall
-WinEnumFiles(
-    PCWSTR Path,
-    PCWSTR FileNameFilter,
-    ULONG Flags,
-    FSHELPENUMCALLBACKPROC Callback,
-    PVOID Context
-    );
+NTSTATUS
+NTAPI
+SetFileBasicInformation(
+	HANDLE hFile,
+	NT_FILE_BASIC_INFORMATION *pfbi
+	);
 
-#ifdef __cplusplus
-extern "C" {
+EXTERN_C
+NTSTATUS
+NTAPI
+QueryAttributesFile(
+	HANDLE hRoot,
+	PCWSTR pszFileName,
+	NT_FILE_BASIC_INFORMATION *FileBasicInfo
+	);
+
+EXTERN_C
+NTSTATUS
+NTAPI
+GetFileSizeByHandle(
+	HANDLE hFile,
+	LARGE_INTEGER *pSize,
+	LARGE_INTEGER *pAllocationSize
+	);
+
+EXTERN_C
+NTSTATUS
+NTAPI
+GetFileId(
+	HANDLE hFile,
+	LARGE_INTEGER *pFildId
+	);
+
+#ifndef _WINDOWS_
+// win32 compatible SYSTEMTIME structure
+typedef struct _SYSTEMTIME {
+  USHORT wYear;
+  USHORT wMonth;
+  USHORT wDayOfWeek;
+  USHORT wDay;
+  USHORT wHour;
+  USHORT wMinute;
+  USHORT wSecond;
+  USHORT wMilliseconds;
+}SYSTEMTIME, *PSYSTEMTIME;
 #endif
 
-#ifdef __cplusplus
-};
-#endif
+EXTERN_C
+VOID
+NTAPI
+LocalSystemTimeToTimeInteger(
+	SYSTEMTIME *pst,
+	LARGE_INTEGER *pliTime
+	);
+
+EXTERN_C
+VOID
+NTAPI
+TimeIntegerToLocalSystemTime(
+	LARGE_INTEGER *pnSysTime,
+	SYSTEMTIME *ps
+	);
+
+EXTERN_C
+VOID
+NTAPI
+SystemTimeToTimeInteger(
+	SYSTEMTIME *pst,
+	LARGE_INTEGER *pliTime
+	);
+
+EXTERN_C
+VOID
+NTAPI
+TimeIntegerToSystemTime(
+	LARGE_INTEGER *pnSysTime,
+	SYSTEMTIME *pst
+	);
+
+EXTERN_C
+VOID
+NTAPI
+SecondsSince1970ToTime(
+    IN ULONG ElapsedSeconds,
+    OUT PLARGE_INTEGER Time
+	);

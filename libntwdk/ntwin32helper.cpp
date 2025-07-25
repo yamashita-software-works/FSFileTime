@@ -2,6 +2,9 @@
  *
  *  Win32 API helper functions
  *
+ *    using in ntddk build for Win32 API.Use when you want to
+ *    call Win32 API from NTDDK user mode source code.
+ *
  *  Copyright (C) YAMASHITA Katsuhiro. All rights reserved.
  *  Licensed under the MIT License.
  *
@@ -94,7 +97,7 @@ int WinGetSystemErrorMessageEx(ULONG ErrorCode,PWSTR *ppMessage,ULONG dwLanguage
     HMODULE hModule = NULL;
     DWORD f = 0;
 
-    if( ErrorCode & 0xC0000000 )
+    if( (ErrorCode & 0xC0000000) == 0xC0000000 )
     {
         hModule = GetModuleHandle(L"ntdll.dll");
         f = FORMAT_MESSAGE_FROM_HMODULE|FORMAT_MESSAGE_IGNORE_INSERTS;
@@ -136,4 +139,24 @@ void WinFreeErrorMessage(PWSTR pMessage)
 {
     if( pMessage )
         LocalFree(pMessage);
+}
+
+PVOID WinLocalAlloc(ULONG Flags, SIZE_T uBytes)
+{
+	return LocalAlloc(Flags,uBytes);
+}
+
+PVOID WinLocalReAlloc(PVOID pMem,SIZE_T uBytes,ULONG uFlags)
+{
+	return LocalReAlloc((HLOCAL)pMem,uBytes,uFlags);
+}
+
+PVOID WinLocalFree(PVOID pMem)
+{
+	return LocalFree((HLOCAL)pMem);
+}
+
+SIZE_T WinLocalSize(PVOID pMem)
+{
+	return LocalSize((HLOCAL)pMem);
 }

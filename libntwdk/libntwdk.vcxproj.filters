@@ -30,7 +30,16 @@
     <ClCompile Include="ntfilehelp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ntobjecthelp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntvolumehelp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="ntwin32helper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ntvolumefunctions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -44,10 +53,25 @@
     <ClInclude Include="ntnativehelp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fileitem.h">
+    <ClInclude Include="ntobjecthelp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntvolumehelp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ntwin32helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntpathcomponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntreparsepointtag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntfileid.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntvolumenames.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

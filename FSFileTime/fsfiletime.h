@@ -1,9 +1,10 @@
 #pragma once
 
+extern "C" {
 #include "ntnativeapi.h"
 #include "ntnativehelp.h"
+}
 #include "ntwin32helper.h"
-
 #include "fileitem.h"
 
 typedef struct _COMMAND_RUN_PATH

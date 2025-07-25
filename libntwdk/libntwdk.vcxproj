@@ -65,17 +65,23 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
     <OutDir>$(SolutionDir)lib\$(PlatformShortName)\$(Configuration)\</OutDir>
     <IncludePath>C:\WinDDK\7600.16385.1\inc\ddk;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\crt;$(IncludePath)</IncludePath>
+    <IntDir>$(PlatformShortName)\$(Configuration)\</IntDir>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
     <OutDir>$(SolutionDir)lib\$(PlatformShortName)\$(Configuration)\</OutDir>
     <IncludePath>C:\WinDDK\7600.16385.1\inc\ddk;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\crt;$(IncludePath)</IncludePath>
+    <IntDir>$(PlatformShortName)\$(Configuration)\</IntDir>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+    <ExecutablePath>$(ExecutablePath)</ExecutablePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
-    <OutDir>$(SolutionDir)lib\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformName)\$(Configuration)\</OutDir>
     <IncludePath>C:\WinDDK\7600.16385.1\inc\ddk;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\crt;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
-    <OutDir>$(SolutionDir)lib\$(PlatformShortName)\$(Configuration)\</OutDir>
+    <OutDir>$(SolutionDir)lib\$(PlatformName)\$(Configuration)\</OutDir>
     <IncludePath>C:\WinDDK\7600.16385.1\inc\ddk;C:\WinDDK\7600.16385.1\inc\api;C:\WinDDK\7600.16385.1\inc\crt;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|Win32'">
@@ -85,6 +91,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions);_X86_</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -100,14 +107,15 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions);_X64_;_AMD64_</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions);_X64_;_AMD64_;_USE_INTERNAL_MEMORY_DEBUG=0</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <OutputFile>$(SolutionDir)lib\$(PlatformShortName)\$(ConfigurationName)\$(TargetName)$(TargetExt)</OutputFile>
+      <OutputFile>$(SolutionDir)lib\$(PlatformName)\$(ConfigurationName)\$(TargetName)$(TargetExt)</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|Win32'">
@@ -149,7 +157,7 @@
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
     <Lib>
-      <OutputFile>$(SolutionDir)lib\$(PlatformShortName)\$(ConfigurationName)\$(TargetName)$(TargetExt)</OutputFile>
+      <OutputFile>$(SolutionDir)lib\$(PlatformName)\$(ConfigurationName)\$(TargetName)$(TargetExt)</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -158,13 +166,21 @@
     <ClCompile Include="ntenumfiles.cpp" />
     <ClCompile Include="ntfilehelp.cpp" />
     <ClCompile Include="ntnativehelp.cpp" />
+    <ClCompile Include="ntobjecthelp.cpp" />
+    <ClCompile Include="ntvolumefunctions.cpp" />
+    <ClCompile Include="ntvolumehelp.cpp" />
     <ClCompile Include="ntwin32helper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="fileitem.h" />
     <ClInclude Include="libntwdk.h" />
+    <ClInclude Include="ntfileid.h" />
     <ClInclude Include="ntnativeapi.h" />
     <ClInclude Include="ntnativehelp.h" />
+    <ClInclude Include="ntobjecthelp.h" />
+    <ClInclude Include="ntpathcomponent.h" />
+    <ClInclude Include="ntreparsepointtag.h" />
+    <ClInclude Include="ntvolumehelp.h" />
+    <ClInclude Include="ntvolumenames.h" />
     <ClInclude Include="ntwin32helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
