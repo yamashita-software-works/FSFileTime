@@ -121,7 +121,7 @@ typedef struct _TRAVERSE_DIRECTORY_PARAM
 
 #define DTF_NO_PROCESS_WILDCARD 0x1
 
-class __declspec(novtable) CTraverseDirectoryParam : public TRAVERSE_DIRECTORY_PARAM
+class CTraverseDirectoryParam : public TRAVERSE_DIRECTORY_PARAM
 {
     PWSTR m_pRootPoint;
     PWSTR m_pConcatenatePoint;
@@ -566,11 +566,11 @@ TraverseDirectory(
         Status = STATUS_NO_MEMORY;
     }
 
-    delete pTDP;
-    
 #if !_C_STYLE
     delete pTDP->pcGetFileInfo;
 #endif
+
+    delete pTDP;
 
     return Status;
 }

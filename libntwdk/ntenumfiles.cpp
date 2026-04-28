@@ -48,7 +48,7 @@ EnumFiles(
     UNICODE_STRING NtPathName;
     UNICODE_STRING FileName;
     PVOID pBuffer = NULL;
-    ULONG cbBuffer = _PAGESIZE * 8;
+    ULONG cbBuffer = _PAGESIZE * 16;
 
     if( pszDirectoryPath == NULL )
         return STATUS_INVALID_PARAMETER;

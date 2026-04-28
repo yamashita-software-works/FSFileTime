@@ -44,10 +44,13 @@
     <ClInclude Include="ntnativehelp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="fileitem.h">
+    <ClInclude Include="ntwin32helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ntwin32helper.h">
+    <ClInclude Include="ntpathcomponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ntreparsepointtag.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

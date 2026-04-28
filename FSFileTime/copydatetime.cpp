@@ -18,7 +18,6 @@
 #include <locale.h>
 #include <conio.h>
 #include <winerror.h>
-
 #include "fsfiletime.h"
 
 typedef struct _COPY_CONTEXT_STRUCT
@@ -39,7 +38,7 @@ CopyDateTime(
     FILE_BASIC_INFORMATION biSrc = {0};
     FILE_BASIC_INFORMATION biDst = {0};
 
-    Status = GetFileDateTime_U(&SrcFilePath,&biSrc);
+    Status = GetFileDateTime_U(NULL,&SrcFilePath,&biSrc);
 
     if( Status == STATUS_SUCCESS )
     {

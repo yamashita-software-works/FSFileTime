@@ -12,49 +12,68 @@
 #include <strsafe.h>
 #include "ntwin32helper.h"
 
-void WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
+int WinGetDateString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR DateFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
 {
+	int cch = 0;
+	BOOL bSuccess;
     SYSTEMTIME st;
     FILETIME ftLocal;
 
     if( bTimeAsUTC )
     {
-        FileTimeToSystemTime((FILETIME*)&DateTime,&st);
+        bSuccess = FileTimeToSystemTime((FILETIME*)&DateTime,&st);
     }
     else
     {
-        FileTimeToLocalFileTime((FILETIME*)&DateTime,&ftLocal);
-        FileTimeToSystemTime(&ftLocal,&st);
+        bSuccess = FileTimeToLocalFileTime((FILETIME*)&DateTime,&ftLocal);
+		if( bSuccess && ftLocal.dwHighDateTime < 0x80000000 )
+			bSuccess = FileTimeToSystemTime(&ftLocal,&st);
+		else
+			bSuccess = FALSE;
     }
 
-    int cch;
-    cch = GetDateFormat(LOCALE_USER_DEFAULT,
-                Flags,
-                &st, 
-                DateFormat,
-                pszText,cchTextMax);
+	if( bSuccess )
+	{
+		cch = GetDateFormat(LOCALE_USER_DEFAULT,
+			        Flags,
+				    &st, 
+					DateFormat,
+					pszText,cchTextMax);
+	}
+
+	return cch;
 }
 
-void WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
+int WinGetTimeString(ULONG64 DateTime,LPTSTR pszText,int cchTextMax,LPCTSTR TimeFormat,BOOLEAN bTimeAsUTC,ULONG Flags)
 {
+	int cch = 0;
+	BOOL bSuccess;
     SYSTEMTIME st;
     FILETIME ftLocal;
 
     if( bTimeAsUTC )
     {
-        FileTimeToSystemTime((FILETIME*)&DateTime,&st);
+        bSuccess = FileTimeToSystemTime((FILETIME*)&DateTime,&st);
     }
     else
     {
-        FileTimeToLocalFileTime((FILETIME*)&DateTime,&ftLocal);
-        FileTimeToSystemTime(&ftLocal,&st);
+        bSuccess = FileTimeToLocalFileTime((FILETIME*)&DateTime,&ftLocal);
+		if( bSuccess && ftLocal.dwHighDateTime < 0x80000000 )
+	        bSuccess = FileTimeToSystemTime(&ftLocal,&st);
+		else
+			bSuccess = FALSE;
     }
 
-    GetTimeFormat(LOCALE_USER_DEFAULT,
+	if( bSuccess )
+	{
+	    cch = GetTimeFormat(LOCALE_USER_DEFAULT,
                 Flags,
                 &st, 
                 TimeFormat,
                 pszText,cchTextMax);
+	}
+
+	return cch;
 }
 
 BOOLEAN
@@ -94,7 +113,7 @@ int WinGetSystemErrorMessageEx(ULONG ErrorCode,PWSTR *ppMessage,ULONG dwLanguage
     HMODULE hModule = NULL;
     DWORD f = 0;
 
-    if( ErrorCode & 0xC0000000 )
+    if( (ErrorCode & 0xC0000000) == 0xC0000000 )
     {
         hModule = GetModuleHandle(L"ntdll.dll");
         f = FORMAT_MESSAGE_FROM_HMODULE|FORMAT_MESSAGE_IGNORE_INSERTS;

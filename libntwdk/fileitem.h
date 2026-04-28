@@ -12,17 +12,36 @@ struct __declspec(novtable) CFileItem : public FILEITEM
         pszFilename = NULL;
     }
 
+    CFileItem(WCHAR *Filename)
+    {
+		setName(Filename);
+    }
+
     ~CFileItem()
     {
-        if( pszFilename )
-            free(pszFilename);
+		freeItem();
     }
 
     HRESULT SetFile(WCHAR *Filename)
     {
-        pszFilename = _wcsdup(Filename);
+		freeItem();
+		setName(Filename);
         return 0;
     }
+
+private:
+	void setName(WCHAR *Filename)
+	{
+        pszFilename = _wcsdup(Filename);
+	}
+
+	void freeItem()
+	{
+		if( pszFilename != NULL ) {
+			free(pszFilename);
+			pszFilename = NULL;
+		}
+	}
 };
 
 class __declspec(novtable) CFileList
@@ -38,6 +57,9 @@ public:
 
     ~CFileList()
     {
+		if( Files )
+			FreeMemory(Files);
+		cFiles = 0;
     }
 
     int GetCount() const
@@ -49,14 +71,14 @@ public:
     {
         if( Files == NULL )
         {
-            Files = (FILEITEM **)malloc( sizeof(FILEITEM*) );
+            Files = (FILEITEM **)AllocMemory( sizeof(FILEITEM*) );
             if( Files == NULL )
                 return -1;
         }
         else
         {
             FILEITEM** temp;
-            temp = (FILEITEM**)realloc(Files,(sizeof(FILEITEM*) * (cFiles + 1)));
+            temp = (FILEITEM**)ReallocMemory(Files,(sizeof(FILEITEM*) * (cFiles + 1)));
             if( temp == NULL )
             {
                 free(Files);

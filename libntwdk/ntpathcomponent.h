@@ -2,7 +2,9 @@
 #define _NTPATHCOMPONENT_
 
 #define DOS_MAX_COMPONENT_LENGTH  255
+#define DOS_MAX_COMPONENT_BYTES   (DOS_MAX_COMPONENT_LENGTH * sizeof(WCHAR))
 #define DOS_MAX_PATH_LENGTH       (DOS_MAX_COMPONENT_LENGTH + 5)
+#define DOS_MAX_PATH_BYTES        (DOS_MAX_PATH_LENGTH * sizeof(WCHAR))
 #define WIN32_MAX_PATH            DOS_MAX_PATH_LENGTH
 #define WIN32_MAX_PATH_BYTES      (WIN32_MAX_PATH * sizeof(WCHAR))
 
@@ -39,5 +41,8 @@
 						+_NT_MAX_ALTERNATE_STREAM_TYPE_LENGTH )
 
 #define _NT_PATH_FULL_LENGTH_BYTES (_NT_PATH_FULL_LENGTH * sizeof(WCHAR))
+
+#define VOLUME_GUID_LENGTH (44) // "Volume{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}"
+#define VOLUME_GUID_BYTES  (WCHAR_BYTE(VOLUME_GUID_LENGTH))
 
 #endif
